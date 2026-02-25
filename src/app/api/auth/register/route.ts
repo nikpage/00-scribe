@@ -34,7 +34,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Return challenge to client — client sends it back in verify step
     return NextResponse.json(options);
   }
 
@@ -56,8 +55,11 @@ export async function POST(request: Request) {
       }
 
       const { credential: cred } = verification.registrationInfo;
-
       const admin = getAdminClient();
+
+      // Try to create user, or find existing one
+      let userId: string;
+
       const { data: authData, error: authError } =
         await admin.auth.admin.createUser({
           email,
@@ -66,18 +68,25 @@ export async function POST(request: Request) {
         });
 
       if (authError) {
-        return NextResponse.json({ error: authError.message }, { status: 400 });
+        // User already exists — find them and add the new passkey
+        const { data: users } = await admin.auth.admin.listUsers();
+        const existing = users?.users.find((u) => u.email === email);
+        if (!existing) {
+          return NextResponse.json({ error: authError.message }, { status: 400 });
+        }
+        userId = existing.id;
+
+        // Ensure profile exists
+        await admin.from("profiles").upsert({ id: userId, name });
+
+        // Delete old credentials for this user (they don't work anymore)
+        await admin.from("credentials").delete().eq("user_id", userId);
+      } else {
+        userId = authData.user.id;
+        await admin.from("profiles").insert({ id: userId, name });
       }
 
-      const userId = authData.user.id;
-
-      // Create profile
-      await admin.from("profiles").insert({
-        id: userId,
-        name,
-      });
-
-      // Store WebAuthn credential
+      // Store new WebAuthn credential
       await admin.from("credentials").insert({
         id: cred.id,
         user_id: userId,
@@ -86,7 +95,7 @@ export async function POST(request: Request) {
         transports: credential.response.transports ?? [],
       });
 
-      // Auto-login: generate a session for the new user
+      // Auto-login
       const { data: sessionData, error: sessionError } =
         await admin.auth.admin.generateLink({
           type: "magiclink",
@@ -94,7 +103,6 @@ export async function POST(request: Request) {
         });
 
       if (sessionError) {
-        // Registration succeeded but auto-login failed — still OK
         return NextResponse.json({ success: true, autoLogin: false });
       }
 

@@ -1,20 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDevice } from "@/hooks/use-device";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const router = useRouter();
-  const { isPhone } = useDevice();
+  const [checking, setChecking] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
-    router.replace(isPhone ? "/queue" : "/transcripts");
-  }, [isPhone, router]);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        router.replace("/queue");
+      } else {
+        router.replace("/auth/login");
+      }
+      setChecking(false);
+    });
+  }, [supabase, router]);
+
+  if (!checking) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="animate-pulse text-muted-foreground">...</div>
     </div>
   );
 }
