@@ -4,7 +4,6 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
 import { createClient as createSSRClient } from "@/lib/supabase/server";
 
 const rpID = process.env.WEBAUTHN_RP_ID!;
@@ -17,11 +16,9 @@ function getAdminClient() {
   );
 }
 
-const challenges = new Map<string, string>();
-
 export async function POST(request: Request) {
   const body = await request.json();
-  const { step, credential } = body;
+  const { step, credential, challenge: clientChallenge } = body;
 
   if (step === "options") {
     const options = await generateAuthenticationOptions({
@@ -29,27 +26,13 @@ export async function POST(request: Request) {
       userVerification: "preferred",
     });
 
-    // Store challenge by a temp ID from the cookie or generate one
-    const challengeId = crypto.randomUUID();
-    challenges.set(challengeId, options.challenge);
-
-    return NextResponse.json(options, {
-      headers: {
-        "Set-Cookie": `webauthn_challenge=${challengeId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=300`,
-      },
-    });
+    // Return challenge to client — client sends it back in verify step
+    return NextResponse.json(options);
   }
 
   if (step === "verify") {
-    const cookieStore = await cookies();
-    const challengeId = cookieStore.get("webauthn_challenge")?.value;
-    if (!challengeId) {
-      return NextResponse.json({ error: "No challenge found" }, { status: 400 });
-    }
-
-    const expectedChallenge = challenges.get(challengeId);
-    if (!expectedChallenge) {
-      return NextResponse.json({ error: "Challenge expired" }, { status: 400 });
+    if (!clientChallenge) {
+      return NextResponse.json({ error: "No challenge provided" }, { status: 400 });
     }
 
     try {
@@ -68,7 +51,7 @@ export async function POST(request: Request) {
 
       const verification = await verifyAuthenticationResponse({
         response: credential,
-        expectedChallenge,
+        expectedChallenge: clientChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
         credential: {
@@ -89,21 +72,22 @@ export async function POST(request: Request) {
         .update({ counter: Number(verification.authenticationInfo.newCounter) })
         .eq("id", credData.id);
 
-      // Create a Supabase session for this user
-      // We use the admin client to generate a session token
+      // Create a Supabase session
+      const { data: userData } = await admin.auth.admin.getUserById(credData.user_id);
+      if (!userData.user?.email) {
+        return NextResponse.json({ error: "User not found" }, { status: 400 });
+      }
+
       const { data: sessionData, error: sessionError } =
         await admin.auth.admin.generateLink({
           type: "magiclink",
-          email: (
-            await admin.auth.admin.getUserById(credData.user_id)
-          ).data.user!.email!,
+          email: userData.user.email,
         });
 
       if (sessionError) {
         return NextResponse.json({ error: sessionError.message }, { status: 500 });
       }
 
-      // Exchange the token hash for a session via the SSR client
       const supabase = await createSSRClient();
       const { error: verifyError } = await supabase.auth.verifyOtp({
         token_hash: sessionData.properties.hashed_token,
@@ -114,7 +98,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: verifyError.message }, { status: 500 });
       }
 
-      challenges.delete(challengeId);
       return NextResponse.json({ success: true });
     } catch (err) {
       return NextResponse.json(

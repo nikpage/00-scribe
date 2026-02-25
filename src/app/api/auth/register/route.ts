@@ -4,12 +4,12 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createSSRClient } from "@/lib/supabase/server";
 
 const rpID = process.env.WEBAUTHN_RP_ID!;
 const rpName = process.env.WEBAUTHN_RP_NAME!;
 const origin = process.env.WEBAUTHN_ORIGIN!;
 
-// Use service role client for user management
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,12 +17,9 @@ function getAdminClient() {
   );
 }
 
-// In-memory challenge store (per-server; fine for single-instance POC)
-const challenges = new Map<string, string>();
-
 export async function POST(request: Request) {
   const body = await request.json();
-  const { step, name, email, credential } = body;
+  const { step, name, email, credential, challenge: clientChallenge } = body;
 
   if (step === "options") {
     const options = await generateRegistrationOptions({
@@ -37,20 +34,19 @@ export async function POST(request: Request) {
       },
     });
 
-    challenges.set(email, options.challenge);
+    // Return challenge to client — client sends it back in verify step
     return NextResponse.json(options);
   }
 
   if (step === "verify") {
-    const expectedChallenge = challenges.get(email);
-    if (!expectedChallenge) {
-      return NextResponse.json({ error: "No challenge found" }, { status: 400 });
+    if (!clientChallenge) {
+      return NextResponse.json({ error: "No challenge provided" }, { status: 400 });
     }
 
     try {
       const verification = await verifyRegistrationResponse({
         response: credential,
-        expectedChallenge,
+        expectedChallenge: clientChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
       });
@@ -61,7 +57,6 @@ export async function POST(request: Request) {
 
       const { credential: cred } = verification.registrationInfo;
 
-      // Create Supabase auth user
       const admin = getAdminClient();
       const { data: authData, error: authError } =
         await admin.auth.admin.createUser({
@@ -91,8 +86,29 @@ export async function POST(request: Request) {
         transports: credential.response.transports ?? [],
       });
 
-      challenges.delete(email);
-      return NextResponse.json({ success: true });
+      // Auto-login: generate a session for the new user
+      const { data: sessionData, error: sessionError } =
+        await admin.auth.admin.generateLink({
+          type: "magiclink",
+          email,
+        });
+
+      if (sessionError) {
+        // Registration succeeded but auto-login failed — still OK
+        return NextResponse.json({ success: true, autoLogin: false });
+      }
+
+      const supabase = await createSSRClient();
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: sessionData.properties.hashed_token,
+        type: "magiclink",
+      });
+
+      if (verifyError) {
+        return NextResponse.json({ success: true, autoLogin: false });
+      }
+
+      return NextResponse.json({ success: true, autoLogin: true });
     } catch (err) {
       return NextResponse.json(
         { error: err instanceof Error ? err.message : "Verification failed" },

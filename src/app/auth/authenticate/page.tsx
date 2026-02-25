@@ -23,16 +23,22 @@ export default function AuthenticatePage() {
       if (!optionsRes.ok) throw new Error("Failed to get options");
       const options = await optionsRes.json();
 
+      // Save challenge — server is stateless on Vercel
+      const challenge = options.challenge;
+
       // 2. Authenticate with passkey
       const credential = await startAuthentication({ optionsJSON: options });
 
-      // 3. Verify with server
+      // 3. Verify with server, passing challenge back
       const verifyRes = await fetch("/api/auth/authenticate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: "verify", credential }),
+        body: JSON.stringify({ step: "verify", credential, challenge }),
       });
-      if (!verifyRes.ok) throw new Error("Authentication failed");
+      if (!verifyRes.ok) {
+        const data = await verifyRes.json();
+        throw new Error(data.error || "Authentication failed");
+      }
 
       router.push("/");
     } catch (err) {
