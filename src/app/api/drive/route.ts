@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { updateTextFile } from "@/lib/google-drive";
 
 export async function PUT(request: Request) {
   const supabase = await createClient();
@@ -39,7 +38,12 @@ export async function PUT(request: Request) {
       })
       .join("\n\n");
 
-    await updateTextFile(recording.drive_text_id, text);
+    await admin.storage
+      .from("recordings")
+      .upload(recording.drive_text_id, Buffer.from(text), {
+        contentType: "text/plain",
+        upsert: true,
+      });
   }
 
   return NextResponse.json({ success: true });

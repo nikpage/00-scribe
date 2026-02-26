@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { uploadFile, getOrCreateWorkerFolder } from "@/lib/google-drive";
 
 export const maxDuration = 60;
 
@@ -38,57 +37,33 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  const { data: profile, error: profileErr } = await admin
-    .from("profiles")
-    .select("name")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) {
-    return NextResponse.json(
-      { error: `[Profile] ${profileErr?.message || "not found for user " + user.id}` },
-      { status: 404 }
-    );
-  }
-
   try {
     await admin
       .from("recordings")
       .update({ status: "uploading" })
       .eq("id", recordingId);
 
-    let workerFolderId: string;
-    try {
-      workerFolderId = await getOrCreateWorkerFolder(profile.name);
-    } catch (e) {
-      throw new Error(`[DriveFolder] ${e instanceof Error ? e.message : String(e)}`);
-    }
+    // Ensure bucket exists (idempotent)
+    await admin.storage.createBucket("recordings", { public: false }).catch(() => {});
 
-    let buffer: Buffer;
-    try {
-      buffer = Buffer.from(await file.arrayBuffer());
-    } catch (e) {
-      throw new Error(`[ReadFile] ${e instanceof Error ? e.message : String(e)}`);
-    }
+    const storagePath = `${user.id}/${filename}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    let driveFileId: string;
-    try {
-      driveFileId = await uploadFile(
-        filename,
-        buffer,
-        file.type || "audio/webm",
-        workerFolderId
-      );
-    } catch (e) {
-      throw new Error(`[DriveUpload] ${e instanceof Error ? e.message : String(e)}`);
-    }
+    const { error: uploadErr } = await admin.storage
+      .from("recordings")
+      .upload(storagePath, buffer, {
+        contentType: file.type || "audio/webm",
+        upsert: true,
+      });
+
+    if (uploadErr) throw new Error(`[Storage] ${uploadErr.message}`);
 
     await admin
       .from("recordings")
-      .update({ drive_audio_id: driveFileId })
+      .update({ drive_audio_id: storagePath })
       .eq("id", recordingId);
 
-    return NextResponse.json({ driveFileId });
+    return NextResponse.json({ storagePath });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Upload failed";
 

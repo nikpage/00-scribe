@@ -75,13 +75,13 @@ export default function QueuePage() {
         throw new Error(errData.error || "Upload failed");
       }
 
-      const { driveFileId } = await uploadRes.json();
+      await uploadRes.json();
 
       // 2. Submit for transcription
       const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recordingId, driveFileId }),
+        body: JSON.stringify({ recordingId }),
       });
 
       if (!transcribeRes.ok) {

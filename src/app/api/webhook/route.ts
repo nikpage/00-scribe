@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "@/lib/transcription";
-import {
-  saveTextFile,
-  deleteFile,
-  getOrCreateWorkerFolder,
-  updateTextFile,
-} from "@/lib/google-drive";
 
 function getAdminClient() {
   return createClient(
@@ -41,7 +35,7 @@ export async function POST(request: Request) {
     // Find the recording by transcription ID
     const { data: recording } = await admin
       .from("recordings")
-      .select("*, profiles!inner(name)")
+      .select("*")
       .eq("transcription_id", result.id)
       .single();
 
@@ -66,28 +60,24 @@ export async function POST(request: Request) {
     const transcript = { utterances: result.utterances };
     const speakers = recording.speakers || {};
 
-    // Save .txt to Drive
-    const workerFolderId = await getOrCreateWorkerFolder(recording.profiles.name);
+    // Save .txt to Supabase Storage
     const text = formatTranscriptText(result.utterances, speakers);
-    let driveTextId = recording.drive_text_id;
+    const textPath = `${recording.user_id}/${recording.filename}.txt`;
 
-    if (driveTextId) {
-      await updateTextFile(driveTextId, text);
-    } else {
-      driveTextId = await saveTextFile(
-        `${recording.filename}.txt`,
-        text,
-        workerFolderId
-      );
-    }
+    await admin.storage.createBucket("recordings", { public: false }).catch(() => {});
+    await admin.storage
+      .from("recordings")
+      .upload(textPath, Buffer.from(text), {
+        contentType: "text/plain",
+        upsert: true,
+      });
 
-    // Delete audio from Drive
+    // Delete audio from storage
     if (recording.drive_audio_id) {
-      try {
-        await deleteFile(recording.drive_audio_id);
-      } catch {
-        // Audio deletion is best-effort
-      }
+      await admin.storage
+        .from("recordings")
+        .remove([recording.drive_audio_id])
+        .catch(() => {});
     }
 
     // Update recording
@@ -96,7 +86,7 @@ export async function POST(request: Request) {
       .update({
         status: "done",
         transcript,
-        drive_text_id: driveTextId,
+        drive_text_id: textPath,
         drive_audio_id: null,
         updated_at: new Date().toISOString(),
       })
