@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { generateFilename } from "@/lib/filename";
-import { saveChunk, getAllChunks, clearChunks } from "@/lib/audio-store";
+import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 
@@ -23,7 +23,7 @@ export default function RecordPage() {
   const supabase = createClient();
   const router = useRouter();
 
-  // Auth gate — redirect to login if not authenticated
+  // Auth gate
   const [authed, setAuthed] = useState(false);
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -59,14 +59,11 @@ export default function RecordPage() {
     setError("");
 
     try {
-      // Request microphone
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Clear any old chunks
       await clearChunks();
 
-      // Start MediaRecorder
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
           ? "audio/webm;codecs=opus"
@@ -74,29 +71,26 @@ export default function RecordPage() {
       });
       mediaRecorderRef.current = mediaRecorder;
 
-      // Save chunks to IndexedDB every 5 seconds
       mediaRecorder.ondataavailable = async (e) => {
         if (e.data.size > 0) {
           await saveChunk(e.data);
         }
       };
 
-      mediaRecorder.start(5000); // chunk every 5 seconds
+      mediaRecorder.start(5000);
       setState("recording");
 
-      // Start timer
       setElapsed(0);
       timerRef.current = setInterval(() => {
         setElapsed((prev) => prev + 1);
       }, 1000);
 
-      // Wake Lock — keep screen on
       try {
         if ("wakeLock" in navigator) {
           wakeLockRef.current = await navigator.wakeLock.request("screen");
         }
       } catch {
-        // Wake Lock not available or denied — continue without it
+        // Wake Lock not available — continue
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
@@ -113,27 +107,22 @@ export default function RecordPage() {
 
     setState("saving");
 
-    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // Release wake lock
     wakeLockRef.current?.release().catch(() => {});
     wakeLockRef.current = null;
 
-    // Stop recording — wait for final chunk
     await new Promise<void>((resolve) => {
       mediaRecorder.onstop = () => resolve();
       mediaRecorder.stop();
     });
 
-    // Stop microphone
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
 
-    // Assemble all chunks into one blob
     const chunks = await getAllChunks();
     if (chunks.length === 0) {
       router.push("/queue");
@@ -141,58 +130,52 @@ export default function RecordPage() {
     }
 
     const blob = new Blob(chunks, { type: chunks[0].type || "audio/webm" });
-    const file = new File([blob], "recording.webm", { type: blob.type });
 
+    // Generate ID and save audio to IndexedDB FIRST — survives page close
+    const recordingId = crypto.randomUUID();
+    await saveRecordingBlob(recordingId, blob);
+    await clearChunks();
+
+    // Now try to save metadata to DB
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // Don't clear IndexedDB — chunks survive for recovery after re-login
+        // Audio is safe in IndexedDB
         router.push("/auth/login");
         return;
       }
 
       const filename = generateFilename(label);
-      const durationSeconds = elapsed;
 
-      const { data: rec, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from("recordings")
         .insert({
+          id: recordingId,
           user_id: user.id,
           label: label.trim(),
           filename,
           recorded_at: new Date().toISOString(),
-          duration_seconds: durationSeconds,
-          file_size_bytes: file.size,
+          duration_seconds: elapsed,
+          file_size_bytes: blob.size,
           status: "pending",
-        })
-        .select()
-        .single();
+        });
 
       if (dbError) {
-        console.error("Recording save failed:", dbError.message);
-        router.push("/queue");
-        return;
+        console.error("DB insert failed:", dbError.message);
+        sessionStorage.setItem("scribe-error", dbError.message);
       }
-
-      // Store file in memory for upload from queue
-      if (typeof window !== "undefined") {
-        if (!(window as unknown as Record<string, unknown>).__pendingAudioFiles) {
-          (window as unknown as Record<string, Map<string, File>>).__pendingAudioFiles = new Map();
-        }
-        (window as unknown as Record<string, Map<string, File>>).__pendingAudioFiles.set(rec.id, file);
-      }
-
-      // Clean up IndexedDB
-      await clearChunks();
-
-      router.push("/queue");
     } catch (err) {
-      console.error("Recording save failed:", err);
-      router.push("/queue");
+      console.error("Save failed:", err);
+      sessionStorage.setItem(
+        "scribe-error",
+        err instanceof Error ? err.message : "Save failed"
+      );
     }
+
+    router.push("/queue");
   }
 
   if (!authed) {

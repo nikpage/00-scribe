@@ -59,8 +59,12 @@ create policy "Users see own recordings" on recordings
     auth.uid() = user_id
     or exists (select 1 from profiles where id = auth.uid() and is_manager = true)
   );
-create policy "Users manage own recordings" on recordings
-  for all using (auth.uid() = user_id);
+create policy "Users insert own recordings" on recordings
+  for insert with check (auth.uid() = user_id);
+create policy "Users update own recordings" on recordings
+  for update using (auth.uid() = user_id);
+create policy "Users delete own recordings" on recordings
+  for delete using (auth.uid() = user_id);
 
 create policy "Users see own credentials" on credentials
   for all using (auth.uid() = user_id);

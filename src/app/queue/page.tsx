@@ -6,11 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useRecordings } from "@/hooks/use-recordings";
 import { useLang } from "@/hooks/use-lang";
 import { QueueTable } from "@/components/queue-table";
+import { getRecordingBlob, deleteRecordingBlob } from "@/lib/audio-store";
 
 export default function QueuePage() {
   const { lang, t } = useLang();
   const [userId, setUserId] = useState<string>();
   const [authed, setAuthed] = useState(false);
+  const [pageError, setPageError] = useState("");
   const supabase = createClient();
   const router = useRouter();
 
@@ -25,18 +27,21 @@ export default function QueuePage() {
     });
   }, [supabase, router]);
 
+  // Show errors passed from record page
+  useEffect(() => {
+    const err = sessionStorage.getItem("scribe-error");
+    if (err) {
+      setPageError(err);
+      sessionStorage.removeItem("scribe-error");
+    }
+  }, []);
+
   const { recordings, loading } = useRecordings(userId);
 
   async function handleUpload(recordingId: string) {
-    // Get the pending file from the global map
-    const pendingFiles = (
-      window as unknown as Record<string, Map<string, File>>
-    ).__pendingAudioFiles;
-    const file = pendingFiles?.get(recordingId);
+    const blob = await getRecordingBlob(recordingId);
 
-    if (!file) {
-      // If file not in memory (page was refreshed), we can't upload
-      // Mark as failed
+    if (!blob) {
       await supabase
         .from("recordings")
         .update({ status: "failed", error: "Audio file lost — please re-record" })
@@ -48,28 +53,36 @@ export default function QueuePage() {
     if (!recording) return;
 
     try {
-      // 1. Get resumable upload URI
+      await supabase
+        .from("recordings")
+        .update({ status: "uploading" })
+        .eq("id", recordingId);
+
+      // 1. Get resumable upload URI from our API
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recordingId,
           filename: recording.filename,
-          mimeType: file.type || "audio/webm",
+          mimeType: blob.type || "audio/webm",
         }),
       });
 
-      if (!uploadRes.ok) throw new Error("Failed to get upload URI");
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to get upload URI");
+      }
       const { uploadUri } = await uploadRes.json();
 
-      // 2. Upload directly to Drive
+      // 2. Upload directly to Google Drive
       const driveRes = await fetch(uploadUri, {
         method: "PUT",
         headers: {
-          "Content-Type": file.type || "audio/webm",
-          "Content-Length": file.size.toString(),
+          "Content-Type": blob.type || "audio/webm",
+          "Content-Length": blob.size.toString(),
         },
-        body: file,
+        body: blob,
       });
 
       if (!driveRes.ok) throw new Error("Upload to Drive failed");
@@ -83,8 +96,8 @@ export default function QueuePage() {
         body: JSON.stringify({ recordingId, driveFileId }),
       });
 
-      // Clean up
-      pendingFiles?.delete(recordingId);
+      // 4. Audio is on Drive — remove from IndexedDB
+      await deleteRecordingBlob(recordingId);
     } catch (err) {
       await supabase
         .from("recordings")
@@ -135,6 +148,18 @@ export default function QueuePage() {
       </header>
 
       <main className="p-4">
+        {pageError && (
+          <div className="mb-4 rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+            {pageError}
+            <button
+              onClick={() => setPageError("")}
+              className="ml-2 font-medium underline"
+            >
+              dismiss
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center text-muted-foreground">{t("loading")}</div>
         ) : recordings.length === 0 ? (
