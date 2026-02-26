@@ -27,17 +27,19 @@ export function useRecordings(userId?: string) {
   const [loading, setLoading] = useState(true);
   const supabaseRef = useRef(createClient());
 
+  // Fetch via server API (admin client — bypasses RLS)
   const fetchRecordings = useCallback(async () => {
     if (!userId) return;
-    const supabase = supabaseRef.current;
 
-    const { data } = await supabase
-      .from("recordings")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (data) setRecordings(data);
+    try {
+      const res = await fetch("/api/recordings");
+      if (res.ok) {
+        const { recordings: data } = await res.json();
+        setRecordings(data);
+      }
+    } catch {
+      // Silently fail — will retry on next poll or Realtime event
+    }
     setLoading(false);
   }, [userId]);
 
@@ -46,6 +48,7 @@ export function useRecordings(userId?: string) {
 
     fetchRecordings();
 
+    // Realtime subscription for instant status updates
     const supabase = supabaseRef.current;
     const channel = supabase
       .channel("recordings-changes")
@@ -62,8 +65,12 @@ export function useRecordings(userId?: string) {
       )
       .subscribe();
 
+    // Poll every 10s as fallback (in case Realtime is blocked by RLS)
+    const interval = setInterval(fetchRecordings, 10000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [userId, fetchRecordings]);
 

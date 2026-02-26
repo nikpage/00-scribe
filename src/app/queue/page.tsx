@@ -9,7 +9,7 @@ import { QueueTable } from "@/components/queue-table";
 import { getRecordingBlob, deleteRecordingBlob } from "@/lib/audio-store";
 
 export default function QueuePage() {
-  const { lang, t } = useLang();
+  const { t } = useLang();
   const [userId, setUserId] = useState<string>();
   const [authed, setAuthed] = useState(false);
   const [pageError, setPageError] = useState("");
@@ -36,16 +36,22 @@ export default function QueuePage() {
     }
   }, []);
 
-  const { recordings, loading } = useRecordings(userId);
+  const { recordings, loading, refetch } = useRecordings(userId);
+
+  async function updateStatus(recordingId: string, status: string, error?: string) {
+    await fetch("/api/recordings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordingId, status, error }),
+    });
+  }
 
   async function handleUpload(recordingId: string) {
     const blob = await getRecordingBlob(recordingId);
 
     if (!blob) {
-      await supabase
-        .from("recordings")
-        .update({ status: "failed", error: "Audio file lost — please re-record" })
-        .eq("id", recordingId);
+      await updateStatus(recordingId, "failed", "Audio file lost — please re-record");
+      refetch();
       return;
     }
 
@@ -53,59 +59,46 @@ export default function QueuePage() {
     if (!recording) return;
 
     try {
-      await supabase
-        .from("recordings")
-        .update({ status: "uploading" })
-        .eq("id", recordingId);
+      // 1. Upload audio through server to Google Drive
+      const formData = new FormData();
+      formData.append("file", blob, recording.filename);
+      formData.append("recordingId", recordingId);
+      formData.append("filename", recording.filename);
 
-      // 1. Get resumable upload URI from our API
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recordingId,
-          filename: recording.filename,
-          mimeType: blob.type || "audio/webm",
-        }),
+        body: formData,
       });
 
       if (!uploadRes.ok) {
         const errData = await uploadRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to get upload URI");
+        throw new Error(errData.error || "Upload failed");
       }
-      const { uploadUri } = await uploadRes.json();
 
-      // 2. Upload directly to Google Drive
-      const driveRes = await fetch(uploadUri, {
-        method: "PUT",
-        headers: {
-          "Content-Type": blob.type || "audio/webm",
-          "Content-Length": blob.size.toString(),
-        },
-        body: blob,
-      });
+      const { driveFileId } = await uploadRes.json();
 
-      if (!driveRes.ok) throw new Error("Upload to Drive failed");
-      const driveData = await driveRes.json();
-      const driveFileId = driveData.id;
-
-      // 3. Submit for transcription
-      await fetch("/api/transcribe", {
+      // 2. Submit for transcription
+      const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recordingId, driveFileId }),
       });
 
-      // 4. Audio is on Drive — remove from IndexedDB
+      if (!transcribeRes.ok) {
+        const errData = await transcribeRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Transcription submission failed");
+      }
+
+      // 3. Audio is on Drive — remove from IndexedDB
       await deleteRecordingBlob(recordingId);
+      refetch();
     } catch (err) {
-      await supabase
-        .from("recordings")
-        .update({
-          status: "failed",
-          error: err instanceof Error ? err.message : "Upload failed",
-        })
-        .eq("id", recordingId);
+      await updateStatus(
+        recordingId,
+        "failed",
+        err instanceof Error ? err.message : "Upload failed"
+      );
+      refetch();
     }
   }
 
@@ -117,10 +110,8 @@ export default function QueuePage() {
   }
 
   async function handleRetry(recordingId: string) {
-    await supabase
-      .from("recordings")
-      .update({ status: "pending", error: null })
-      .eq("id", recordingId);
+    await updateStatus(recordingId, "pending");
+    refetch();
     await handleUpload(recordingId);
   }
 
