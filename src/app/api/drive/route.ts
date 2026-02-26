@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { updateTextFile } from "@/lib/google-drive";
 
 export async function PUT(request: Request) {
@@ -13,9 +14,9 @@ export async function PUT(request: Request) {
   }
 
   const { recordingId, speakers } = await request.json();
+  const admin = createAdminClient();
 
-  // Get recording
-  const { data: recording } = await supabase
+  const { data: recording } = await admin
     .from("recordings")
     .select("*")
     .eq("id", recordingId)
@@ -25,13 +26,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Recording not found" }, { status: 404 });
   }
 
-  // Update speakers in DB
-  await supabase
+  await admin
     .from("recordings")
     .update({ speakers, updated_at: new Date().toISOString() })
     .eq("id", recordingId);
 
-  // Re-generate and update .txt on Drive
   if (recording.drive_text_id && recording.transcript) {
     const text = recording.transcript.utterances
       .map((u: { speaker: string; text: string }) => {

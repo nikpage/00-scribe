@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export interface Recording {
@@ -25,26 +25,28 @@ export interface Recording {
 export function useRecordings(userId?: string) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabaseRef = useRef(createClient());
 
   const fetchRecordings = useCallback(async () => {
-    let query = supabase
+    if (!userId) return;
+    const supabase = supabaseRef.current;
+
+    const { data } = await supabase
       .from("recordings")
       .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (userId) {
-      query = query.eq("user_id", userId);
-    }
-
-    const { data } = await query;
     if (data) setRecordings(data);
     setLoading(false);
-  }, [supabase, userId]);
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
+
     fetchRecordings();
 
+    const supabase = supabaseRef.current;
     const channel = supabase
       .channel("recordings-changes")
       .on(
@@ -63,7 +65,7 @@ export function useRecordings(userId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchRecordings]);
+  }, [userId, fetchRecordings]);
 
   return { recordings, loading, refetch: fetchRecordings };
 }

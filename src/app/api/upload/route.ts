@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getResumableUploadUri, getOrCreateWorkerFolder } from "@/lib/google-drive";
 
 export async function POST(request: Request) {
@@ -13,9 +14,9 @@ export async function POST(request: Request) {
   }
 
   const { recordingId, filename, mimeType } = await request.json();
+  const admin = createAdminClient();
 
-  // Get worker name for folder
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from("profiles")
     .select("name")
     .eq("id", user.id)
@@ -29,8 +30,7 @@ export async function POST(request: Request) {
     const workerFolderId = await getOrCreateWorkerFolder(profile.name);
     const uploadUri = await getResumableUploadUri(filename, mimeType, workerFolderId);
 
-    // Update recording status
-    await supabase
+    await admin
       .from("recordings")
       .update({ status: "uploading" })
       .eq("id", recordingId);

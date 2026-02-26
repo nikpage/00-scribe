@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getDownloadUrl } from "@/lib/google-drive";
 import { getProvider } from "@/lib/transcription";
 
@@ -14,10 +15,10 @@ export async function POST(request: Request) {
   }
 
   const { recordingId, driveFileId } = await request.json();
+  const admin = createAdminClient();
 
   try {
-    // Update recording with Drive file ID
-    await supabase
+    await admin
       .from("recordings")
       .update({
         drive_audio_id: driveFileId,
@@ -25,20 +26,18 @@ export async function POST(request: Request) {
       })
       .eq("id", recordingId);
 
-    // Get download URL and submit to transcription provider
     const audioUrl = await getDownloadUrl(driveFileId);
     const provider = getProvider();
     const { id: transcriptionId } = await provider.submit(audioUrl);
 
-    // Store transcription ID
-    await supabase
+    await admin
       .from("recordings")
       .update({ transcription_id: transcriptionId })
       .eq("id", recordingId);
 
     return NextResponse.json({ transcriptionId });
   } catch (err) {
-    await supabase
+    await admin
       .from("recordings")
       .update({
         status: "failed",

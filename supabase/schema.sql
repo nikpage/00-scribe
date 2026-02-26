@@ -39,35 +39,7 @@ create table if not exists recordings (
   updated_at timestamptz default now()
 );
 
--- RLS policies
-alter table profiles enable row level security;
-alter table recordings enable row level security;
-alter table credentials enable row level security;
-
--- Workers see own profile; managers see all profiles
-create policy "Users see own profile" on profiles
-  for select using (
-    auth.uid() = id
-    or exists (select 1 from profiles where id = auth.uid() and is_manager = true)
-  );
-create policy "Users update own profile" on profiles
-  for update using (auth.uid() = id);
-
--- Workers see own recordings; managers see all
-create policy "Users see own recordings" on recordings
-  for select using (
-    auth.uid() = user_id
-    or exists (select 1 from profiles where id = auth.uid() and is_manager = true)
-  );
-create policy "Users insert own recordings" on recordings
-  for insert with check (auth.uid() = user_id);
-create policy "Users update own recordings" on recordings
-  for update using (auth.uid() = user_id);
-create policy "Users delete own recordings" on recordings
-  for delete using (auth.uid() = user_id);
-
-create policy "Users see own credentials" on credentials
-  for all using (auth.uid() = user_id);
+-- No RLS — all access control handled server-side via admin client
 
 -- Realtime: enable for recordings table (queue status updates)
 alter publication supabase_realtime add table recordings;
