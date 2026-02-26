@@ -136,8 +136,7 @@ export default function RecordPage() {
     // Assemble all chunks into one blob
     const chunks = await getAllChunks();
     if (chunks.length === 0) {
-      setError(t("noAudioRecorded"));
-      setState("idle");
+      router.push("/queue");
       return;
     }
 
@@ -173,8 +172,8 @@ export default function RecordPage() {
         .single();
 
       if (dbError) {
-        setError(`${t("errorPrefix")}: ${dbError.message}`);
-        setState("idle");
+        console.error("Recording save failed:", dbError.message);
+        router.push("/queue");
         return;
       }
 
@@ -191,8 +190,8 @@ export default function RecordPage() {
 
       router.push("/queue");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("somethingWentWrong"));
-      setState("idle");
+      console.error("Recording save failed:", err);
+      router.push("/queue");
     }
   }
 
