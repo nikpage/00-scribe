@@ -1,19 +1,31 @@
 import { google } from "googleapis";
 import { Readable } from "stream";
 
-function getAuth() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY!;
+function parseServiceAccountKey(): Record<string, unknown> {
+  let raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY is not set");
 
-  let key;
-  try {
-    // Try raw JSON first (pasted directly into env var)
-    key = JSON.parse(raw);
-  } catch {
-    // Fall back to base64-encoded JSON
-    key = JSON.parse(Buffer.from(raw, "base64").toString());
+  // Strip wrapping quotes (Vercel UI can add them)
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    raw = raw.slice(1, -1);
   }
 
+  // Unescape double-escaped characters
+  raw = raw.replace(/\\\\n/g, "\\n").replace(/\\"/g, '"');
+
+  // Try raw JSON
+  try { return JSON.parse(raw); } catch {}
+
+  // Try base64
+  try { return JSON.parse(Buffer.from(raw, "base64").toString()); } catch {}
+
+  throw new Error(
+    `Cannot parse service account key (${raw.length} chars, starts: ${raw.substring(0, 40)}...)`
+  );
+}
+
+function getAuth() {
+  const key = parseServiceAccountKey();
   return new google.auth.GoogleAuth({
     credentials: key,
     scopes: ["https://www.googleapis.com/auth/drive"],
