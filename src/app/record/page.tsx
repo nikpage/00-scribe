@@ -23,6 +23,18 @@ export default function RecordPage() {
   const supabase = createClient();
   const router = useRouter();
 
+  // Auth gate — redirect to login if not authenticated
+  const [authed, setAuthed] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.replace("/auth/login");
+      } else {
+        setAuthed(true);
+      }
+    });
+  }, [supabase, router]);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -138,6 +150,7 @@ export default function RecordPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        // Don't clear IndexedDB — chunks survive for recovery after re-login
         router.push("/auth/login");
         return;
       }
@@ -181,6 +194,14 @@ export default function RecordPage() {
       setError(err instanceof Error ? err.message : t("somethingWentWrong"));
       setState("idle");
     }
+  }
+
+  if (!authed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">...</div>
+      </div>
+    );
   }
 
   return (

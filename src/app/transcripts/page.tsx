@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRecordings } from "@/hooks/use-recordings";
 import { useLang } from "@/hooks/use-lang";
@@ -8,16 +9,31 @@ import { useLang } from "@/hooks/use-lang";
 export default function TranscriptsPage() {
   const { t } = useLang();
   const [userId, setUserId] = useState<string>();
+  const [authed, setAuthed] = useState(false);
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+      if (!user) {
+        router.replace("/auth/login");
+      } else {
+        setUserId(user.id);
+        setAuthed(true);
+      }
     });
-  }, [supabase]);
+  }, [supabase, router]);
 
   const { recordings, loading } = useRecordings(userId);
   const completed = recordings.filter((r) => r.status === "done");
+
+  if (!authed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
