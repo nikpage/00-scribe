@@ -136,36 +136,27 @@ export default function RecordPage() {
     await saveRecordingBlob(recordingId, blob);
     await clearChunks();
 
-    // Now try to save metadata to DB
+    // Save metadata via server API (bypasses client-side auth/RLS issues)
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        // Audio is safe in IndexedDB
-        router.push("/auth/login");
-        return;
-      }
-
       const filename = generateFilename(label);
 
-      const { error: dbError } = await supabase
-        .from("recordings")
-        .insert({
+      const res = await fetch("/api/recordings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           id: recordingId,
-          user_id: user.id,
           label: label.trim(),
           filename,
           recorded_at: new Date().toISOString(),
           duration_seconds: elapsed,
           file_size_bytes: blob.size,
-          status: "pending",
-        });
+        }),
+      });
 
-      if (dbError) {
-        console.error("DB insert failed:", dbError.message);
-        sessionStorage.setItem("scribe-error", dbError.message);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("DB insert failed:", data.error);
+        sessionStorage.setItem("scribe-error", data.error || "Save failed");
       }
     } catch (err) {
       console.error("Save failed:", err);
