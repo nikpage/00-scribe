@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><title>Encode Key</title></head>
+<body style="font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 20px">
+<h2>Paste your Google service account key JSON below</h2>
+<textarea id="input" rows="12" style="width:100%;font-size:14px" placeholder="Paste the entire JSON key here..."></textarea>
+<br><br>
+<button onclick="encode()" style="padding:10px 20px;font-size:16px">Encode</button>
+<br><br>
+<textarea id="output" rows="4" style="width:100%;font-size:14px" placeholder="Encoded result will appear here..." readonly></textarea>
+<br>
+<button onclick="navigator.clipboard.writeText(document.getElementById('output').value).then(()=>alert('Copied!'))" style="padding:10px 20px;font-size:16px">Copy</button>
+<script>
+function encode(){
+  var v=document.getElementById('input').value.trim();
+  document.getElementById('output').value=btoa(unescape(encodeURIComponent(v)));
+}
+</script>
+</body>
+</html>
