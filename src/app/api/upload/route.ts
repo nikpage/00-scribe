@@ -18,9 +18,9 @@ export async function POST(request: Request) {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
+  } catch (e) {
     return NextResponse.json(
-      { error: "Invalid form data. File may exceed size limit (~4.5 MB)." },
+      { error: `[FormData] ${e instanceof Error ? e.message : "parse failed"}` },
       { status: 400 }
     );
   }
@@ -30,19 +30,25 @@ export async function POST(request: Request) {
   const filename = formData.get("filename") as string;
 
   if (!file || !recordingId || !filename) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    return NextResponse.json(
+      { error: `[Fields] file=${!!file} recordingId=${!!recordingId} filename=${!!filename}` },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminClient();
 
-  const { data: profile } = await admin
+  const { data: profile, error: profileErr } = await admin
     .from("profiles")
     .select("name")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: `[Profile] ${profileErr?.message || "not found for user " + user.id}` },
+      { status: 404 }
+    );
   }
 
   try {
@@ -51,14 +57,31 @@ export async function POST(request: Request) {
       .update({ status: "uploading" })
       .eq("id", recordingId);
 
-    const workerFolderId = await getOrCreateWorkerFolder(profile.name);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const driveFileId = await uploadFile(
-      filename,
-      buffer,
-      file.type || "audio/webm",
-      workerFolderId
-    );
+    let workerFolderId: string;
+    try {
+      workerFolderId = await getOrCreateWorkerFolder(profile.name);
+    } catch (e) {
+      throw new Error(`[DriveFolder] ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(await file.arrayBuffer());
+    } catch (e) {
+      throw new Error(`[ReadFile] ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    let driveFileId: string;
+    try {
+      driveFileId = await uploadFile(
+        filename,
+        buffer,
+        file.type || "audio/webm",
+        workerFolderId
+      );
+    } catch (e) {
+      throw new Error(`[DriveUpload] ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     await admin
       .from("recordings")
@@ -67,17 +90,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ driveFileId });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : "Upload failed";
+
     await admin
       .from("recordings")
-      .update({
-        status: "failed",
-        error: err instanceof Error ? err.message : "Upload failed",
-      })
+      .update({ status: "failed", error: msg })
       .eq("id", recordingId);
 
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Upload failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
