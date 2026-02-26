@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { TranscriptViewer } from "@/components/transcript-viewer";
 import { useParams } from "next/navigation";
+import { useLang } from "@/hooks/use-lang";
 
 interface Recording {
   id: string;
@@ -16,6 +17,7 @@ interface Recording {
 }
 
 export default function TranscriptPage() {
+  const { t } = useLang();
   const params = useParams();
   const id = params.id as string;
   const [recording, setRecording] = useState<Recording | null>(null);
@@ -51,7 +53,7 @@ export default function TranscriptPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">{t("loading")}</div>
       </div>
     );
   }
@@ -59,7 +61,7 @@ export default function TranscriptPage() {
   if (!recording || !recording.transcript) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Transcript not found.</div>
+        <div className="text-muted-foreground">{t("transcriptNotFound")}</div>
       </div>
     );
   }
@@ -77,19 +79,19 @@ export default function TranscriptPage() {
               href="/transcripts"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Transcripts
+              {t("transcripts")}
             </a>
             <a
               href="/queue"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Queue
+              {t("queue")}
             </a>
             <a
               href="/manager"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Manager
+              {t("manager")}
             </a>
           </nav>
         </aside>
@@ -98,7 +100,7 @@ export default function TranscriptPage() {
         <main className="flex-1 p-6">
           <div className="mb-6">
             <a href="/transcripts" className="text-sm text-primary hover:underline">
-              &larr; Back to transcripts
+              {t("backToTranscripts")}
             </a>
           </div>
 

@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRecordings } from "@/hooks/use-recordings";
+import { useLang } from "@/hooks/use-lang";
 import { QueueTable } from "@/components/queue-table";
 
 export default function QueuePage() {
+  const { lang, t } = useLang();
   const [userId, setUserId] = useState<string>();
   const supabase = createClient();
 
@@ -106,24 +108,24 @@ export default function QueuePage() {
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">Recordings</h1>
+          <h1 className="text-lg font-bold">{t("recordings")}</h1>
           <a
             href="/record"
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
           >
-            New
+            {t("new")}
           </a>
         </div>
       </header>
 
       <main className="p-4">
         {loading ? (
-          <div className="text-center text-muted-foreground">Loading...</div>
+          <div className="text-center text-muted-foreground">{t("loading")}</div>
         ) : recordings.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
-            <p>No recordings yet.</p>
+            <p>{t("noRecordings")}</p>
             <a href="/record" className="mt-2 inline-block text-primary hover:underline">
-              Create your first recording
+              {t("createFirst")}
             </a>
           </div>
         ) : (
@@ -133,7 +135,7 @@ export default function QueuePage() {
                 onClick={handleUploadAll}
                 className="mb-4 w-full rounded-lg border border-primary bg-background px-4 py-2 text-sm font-medium text-primary hover:bg-muted"
               >
-                Upload All Pending
+                {t("uploadAllPending")}
               </button>
             )}
             <QueueTable
@@ -152,19 +154,19 @@ export default function QueuePage() {
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
-            <span className="text-xs">Queue</span>
+            <span className="text-xs">{t("queue")}</span>
           </a>
           <a href="/record" className="flex flex-col items-center p-2 text-muted-foreground">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span className="text-xs">Record</span>
+            <span className="text-xs">{t("record")}</span>
           </a>
           <a href="/transcripts" className="flex flex-col items-center p-2 text-muted-foreground">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="text-xs">Transcripts</span>
+            <span className="text-xs">{t("transcripts")}</span>
           </a>
         </div>
       </nav>

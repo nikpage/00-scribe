@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/hooks/use-lang";
 
 interface ManagerRecording {
   id: string;
@@ -26,6 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
+  const { t } = useLang();
   const [filterWorker, setFilterWorker] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
@@ -47,7 +49,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
           onChange={(e) => setFilterWorker(e.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
         >
-          <option value="">All workers</option>
+          <option value="">{t("allWorkers")}</option>
           {workers.map((w) => (
             <option key={w} value={w}>
               {w}
@@ -59,7 +61,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
         >
-          <option value="">All statuses</option>
+          <option value="">{t("allStatuses")}</option>
           {statuses.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -74,19 +76,19 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Worker
+                {t("worker")}
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Recording
+                {t("recording")}
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Date
+                {t("date")}
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Status
+                {t("status")}
               </th>
               <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                Actions
+                {t("actions")}
               </th>
             </tr>
           </thead>
@@ -102,7 +104,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[rec.status] || statusColors.pending}`}
                   >
-                    {rec.status}
+                    {t(rec.status as any)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -111,7 +113,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
                       href={`/transcript/${rec.id}`}
                       className="text-sm text-primary hover:underline"
                     >
-                      View
+                      {t("view")}
                     </a>
                   )}
                 </td>
@@ -120,7 +122,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  No recordings found.
+                  {t("noRecordsFound")}
                 </td>
               </tr>
             )}

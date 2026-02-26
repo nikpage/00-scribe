@@ -1,6 +1,7 @@
 "use client";
 
 import type { Recording } from "@/hooks/use-recordings";
+import { useLang } from "@/hooks/use-lang";
 
 interface QueueTableProps {
   recordings: Recording[];
@@ -41,6 +42,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
+  const { t } = useLang();
   return (
     <div className="space-y-3">
       {recordings.map((rec) => (
@@ -62,7 +64,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
             <span
               className={`ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[rec.status] || statusColors.pending}`}
             >
-              {rec.status}
+              {t(rec.status as any)}
             </span>
           </div>
 
@@ -76,7 +78,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
                 onClick={() => onUpload(rec.id)}
                 className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"
               >
-                Upload
+                {t("upload")}
               </button>
             )}
             {rec.status === "failed" && (
@@ -84,7 +86,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
                 onClick={() => onRetry(rec.id)}
                 className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
               >
-                Retry
+                {t("retry")}
               </button>
             )}
             {rec.status === "done" && (
@@ -92,7 +94,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
                 href={`/transcript/${rec.id}`}
                 className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
               >
-                View Transcript
+                {t("viewTranscript")}
               </a>
             )}
           </div>

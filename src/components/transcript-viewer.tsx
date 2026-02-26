@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/hooks/use-lang";
 
 interface Utterance {
   speaker: string;
@@ -18,6 +19,7 @@ export function TranscriptViewer({
   speakers: initialSpeakers,
   onSaveSpeakers,
 }: TranscriptViewerProps) {
+  const { t } = useLang();
   const [speakers, setSpeakers] = useState<Record<string, string>>(initialSpeakers);
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -79,13 +81,13 @@ export function TranscriptViewer({
                   disabled={saving}
                   className="rounded bg-primary px-2 py-1 text-xs text-white"
                 >
-                  Save
+                  {t("save")}
                 </button>
                 <button
                   onClick={() => setEditing(null)}
                   className="rounded bg-muted px-2 py-1 text-xs"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
             ) : (

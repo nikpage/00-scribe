@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ManagerDashboard } from "@/components/manager-dashboard";
+import { useLang } from "@/hooks/use-lang";
 
 interface ManagerRecording {
   id: string;
@@ -16,6 +17,7 @@ interface ManagerRecording {
 }
 
 export default function ManagerPage() {
+  const { lang, t } = useLang();
   const [recordings, setRecordings] = useState<ManagerRecording[]>([]);
   const [loading, setLoading] = useState(true);
   const [isManager, setIsManager] = useState(false);
@@ -69,7 +71,7 @@ export default function ManagerPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">{t("loading")}</div>
       </div>
     );
   }
@@ -78,10 +80,10 @@ export default function ManagerPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center text-muted-foreground">
-          <p className="text-lg font-medium">Access Denied</p>
-          <p className="mt-1">You need manager permissions to view this page.</p>
+          <p className="text-lg font-medium">{t("accessDenied")}</p>
+          <p className="mt-1">{t("needManager")}</p>
           <a href="/" className="mt-4 inline-block text-primary hover:underline">
-            Go home
+            {t("goHome")}
           </a>
         </div>
       </div>
@@ -101,25 +103,25 @@ export default function ManagerPage() {
               href="/transcripts"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Transcripts
+              {t("transcripts")}
             </a>
             <a
               href="/queue"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
             >
-              Queue
+              {t("queue")}
             </a>
             <a
               href="/manager"
               className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
             >
-              Manager
+              {t("manager")}
             </a>
           </nav>
         </aside>
 
         <main className="flex-1 p-6">
-          <h2 className="mb-6 text-2xl font-bold">Manager Dashboard</h2>
+          <h2 className="mb-6 text-2xl font-bold">{t("manager")}</h2>
           <ManagerDashboard recordings={recordings} />
         </main>
       </div>

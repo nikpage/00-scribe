@@ -4,6 +4,8 @@ import { useState } from "react";
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useLang } from "@/hooks/use-lang";
+import { LangToggle } from "@/components/lang-toggle";
 
 export default function AuthPage() {
   const [name, setName] = useState("");
@@ -13,6 +15,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
   const router = useRouter();
+  const { lang, switchLang, t } = useLang();
   const supabase = createClient();
 
   async function handleRegister(e: React.FormEvent) {
@@ -109,11 +112,12 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen p-4 pt-8">
         <div className="w-full max-w-sm mx-auto space-y-4 text-center">
-          <h1 className="text-2xl font-bold">Scribe</h1>
+          <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
+          <h1 className="text-2xl font-bold">{t("appName")}</h1>
           <p className="text-muted-foreground">
-            Odkaz poslán na <strong>{magicEmail}</strong>
+            {t("magicLinkSent")} <strong>{magicEmail}</strong>
           </p>
-          <p className="text-sm text-muted-foreground">Klikněte na odkaz v emailu.</p>
+          <p className="text-sm text-muted-foreground">{t("clickEmailLink")}</p>
         </div>
       </div>
     );
@@ -122,13 +126,14 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen p-4 pt-8">
       <div className="w-full max-w-sm mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-center">Scribe</h1>
+        <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
+        <h1 className="text-2xl font-bold text-center">{t("appName")}</h1>
 
         {/* Register — first time */}
         <form onSubmit={handleRegister} className="space-y-3">
           <input
             type="text"
-            placeholder="Vaše jméno"
+            placeholder={t("yourName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -136,7 +141,7 @@ export default function AuthPage() {
           />
           <input
             type="email"
-            placeholder="Váš email"
+            placeholder={t("yourEmail")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -147,7 +152,7 @@ export default function AuthPage() {
             disabled={loading}
             className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
           >
-            {loading ? "..." : "Registrovat"}
+            {loading ? t("registering") : t("registerButton")}
           </button>
         </form>
 
@@ -156,7 +161,7 @@ export default function AuthPage() {
         {/* Sign in — returning user */}
         <div className="relative flex items-center gap-3">
           <div className="flex-1 border-t border-border" />
-          <span className="text-sm text-muted-foreground">nebo</span>
+          <span className="text-sm text-muted-foreground">{t("or")}</span>
           <div className="flex-1 border-t border-border" />
         </div>
 
@@ -165,14 +170,14 @@ export default function AuthPage() {
           disabled={loading}
           className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
         >
-          Přihlásit se passkey
+          {t("signInWithPasskey")}
         </button>
 
         {/* Magic link — works on any device */}
         <form onSubmit={handleMagicLink} className="space-y-3">
           <input
             type="email"
-            placeholder="Email pro přihlášení odkazem"
+            placeholder={t("emailForMagicLink")}
             value={magicEmail}
             onChange={(e) => setMagicEmail(e.target.value)}
             required
@@ -183,7 +188,7 @@ export default function AuthPage() {
             disabled={loading}
             className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
           >
-            Poslat přihlašovací odkaz
+            {t("sendMagicLink")}
           </button>
         </form>
       </div>
