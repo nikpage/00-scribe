@@ -7,9 +7,10 @@ const client = new AssemblyAI({
 
 export const assemblyaiProvider: TranscriptionProvider = {
   async submit(audioUrl: string) {
-    const transcript = await client.transcripts.transcribe({
+    const transcript = await client.transcripts.submit({
       audio_url: audioUrl,
-      language_code: "cs",
+      speech_model: "best",
+      language_detection: true,
       speaker_labels: true,
       webhook_url: `${process.env.WEBAUTHN_ORIGIN}/api/webhook`,
     });
@@ -37,7 +38,6 @@ export const assemblyaiProvider: TranscriptionProvider = {
   },
 
   async verifyWebhook(_request: Request) {
-    // AssemblyAI webhook verification is done via the transcript ID
     return true;
   },
 
@@ -52,7 +52,6 @@ export const assemblyaiProvider: TranscriptionProvider = {
         error: "Transcription failed",
       };
     }
-    // Fetch the full transcript to get utterances
     return this.getResult(transcript_id);
   },
 };
