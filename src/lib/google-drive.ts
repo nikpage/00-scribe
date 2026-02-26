@@ -19,6 +19,16 @@ function parseServiceAccountKey(): Record<string, unknown> {
   // Try base64
   try { return JSON.parse(Buffer.from(raw, "base64").toString()); } catch {}
 
+  // Try base64 with newline fix (private_key field often has real newlines)
+  try {
+    const decoded = Buffer.from(raw, "base64").toString();
+    const fixed = decoded.replace(
+      /("private_key"\s*:\s*")([\s\S]*?)(")/,
+      (_, before, value, after) => before + value.replace(/\n/g, "\\n") + after
+    );
+    return JSON.parse(fixed);
+  } catch {}
+
   throw new Error(
     `Cannot parse service account key (${raw.length} chars, starts: ${raw.substring(0, 40)}...)`
   );

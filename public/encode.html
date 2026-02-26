@@ -5,13 +5,23 @@
 <textarea id="input" rows="12" style="width:100%;font-size:14px" placeholder="Paste the entire JSON key here..."></textarea>
 <br><br>
 <button onclick="encode()" style="padding:10px 20px;font-size:16px">Encode</button>
-<br><br>
+<p id="status" style="color:gray"></p>
 <textarea id="output" rows="4" style="width:100%;font-size:14px" placeholder="Encoded result will appear here..." readonly></textarea>
 <br>
 <button onclick="navigator.clipboard.writeText(document.getElementById('output').value).then(()=>alert('Copied!'))" style="padding:10px 20px;font-size:16px">Copy</button>
 <script>
 function encode(){
   var v=document.getElementById('input').value.trim();
+  var s=document.getElementById('status');
+  try {
+    var obj=JSON.parse(v);
+    s.textContent='Parsed OK: project='+obj.project_id+', email='+obj.client_email;
+    s.style.color='green';
+    v=JSON.stringify(obj);
+  } catch(e) {
+    s.textContent='Warning: '+e.message+' — encoding raw text';
+    s.style.color='orange';
+  }
   document.getElementById('output').value=btoa(unescape(encodeURIComponent(v)));
 }
 </script>
