@@ -12,6 +12,7 @@ type RecordingState = "idle" | "recording" | "saving";
 
 export default function RecordPage() {
   const [label, setLabel] = useState("");
+  const [speakerCount, setSpeakerCount] = useState(2);
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -150,6 +151,7 @@ export default function RecordPage() {
           recorded_at: new Date().toISOString(),
           duration_seconds: elapsed,
           file_size_bytes: blob.size,
+          speakers_expected: speakerCount,
         }),
       });
 
@@ -196,6 +198,28 @@ export default function RecordPage() {
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                {t("speakerCount")}
+              </label>
+              <div className="flex gap-2">
+                {[2, 3].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setSpeakerCount(n)}
+                    className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium ${
+                      speakerCount === n
+                        ? "border-primary bg-primary text-white"
+                        : "border-border bg-background text-foreground"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button

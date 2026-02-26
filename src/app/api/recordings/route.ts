@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { id, label, filename, recorded_at, duration_seconds, file_size_bytes } = body;
+  const { id, label, filename, recorded_at, duration_seconds, file_size_bytes, speakers_expected } = body;
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       duration_seconds,
       file_size_bytes,
       status: "pending",
+      speakers: { expected: speakers_expected || 2 },
     })
     .select()
     .single();

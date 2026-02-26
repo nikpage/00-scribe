@@ -19,13 +19,15 @@ export async function POST(request: Request) {
   try {
     const { data: recording } = await admin
       .from("recordings")
-      .select("drive_audio_id")
+      .select("drive_audio_id, speakers")
       .eq("id", recordingId)
       .single();
 
     if (!recording?.drive_audio_id) {
       return NextResponse.json({ error: "Recording audio not found" }, { status: 404 });
     }
+
+    const speakersExpected = recording.speakers?.expected || 2;
 
     await admin
       .from("recordings")
@@ -42,7 +44,9 @@ export async function POST(request: Request) {
     }
 
     const provider = getProvider();
-    const { id: transcriptionId } = await provider.submit(urlData.signedUrl);
+    const { id: transcriptionId } = await provider.submit(urlData.signedUrl, {
+      speakersExpected: speakersExpected,
+    });
 
     await admin
       .from("recordings")
