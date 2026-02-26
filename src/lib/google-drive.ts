@@ -2,9 +2,18 @@ import { google } from "googleapis";
 import { Readable } from "stream";
 
 function getAuth() {
-  const key = JSON.parse(
-    Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!, "base64").toString()
-  );
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY!;
+  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY is not set");
+
+  let key;
+  try {
+    // Try raw JSON first (pasted directly into env var)
+    key = JSON.parse(raw);
+  } catch {
+    // Fall back to base64-encoded JSON
+    key = JSON.parse(Buffer.from(raw, "base64").toString());
+  }
+
   return new google.auth.GoogleAuth({
     credentials: key,
     scopes: ["https://www.googleapis.com/auth/drive"],
