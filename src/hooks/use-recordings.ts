@@ -46,7 +46,9 @@ export function useRecordings(userId?: string) {
   useEffect(() => {
     if (!userId) return;
 
-    fetchRecordings();
+    // Initial fetch
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch sets state via callback, not synchronously
+    void fetchRecordings();
 
     // Realtime subscription for instant status updates
     const supabase = supabaseRef.current;
@@ -60,7 +62,7 @@ export function useRecordings(userId?: string) {
           table: "recordings",
         },
         () => {
-          fetchRecordings();
+          void fetchRecordings();
         }
       )
       .subscribe();

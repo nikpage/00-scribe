@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/hooks/use-lang";
 
 interface ManagerRecording {
@@ -104,7 +105,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[rec.status] || statusColors.pending}`}
                   >
-                    {t(rec.status as any)}
+                    {t(rec.status as TranslationKey)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">

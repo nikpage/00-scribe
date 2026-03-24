@@ -1,5 +1,5 @@
 import { AssemblyAI } from "assemblyai";
-import type { TranscriptionProvider, TranscriptionResult } from "./types";
+import type { TranscriptionProvider } from "./types";
 
 const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY!,
@@ -38,7 +38,8 @@ export const assemblyaiProvider: TranscriptionProvider = {
     };
   },
 
-  async verifyWebhook(_request: Request) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async verifyWebhook(_request: Request): Promise<boolean> {
     return true;
   },
 

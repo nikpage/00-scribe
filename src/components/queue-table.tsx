@@ -1,6 +1,7 @@
 "use client";
 
 import type { Recording } from "@/hooks/use-recordings";
+import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/hooks/use-lang";
 
 interface QueueTableProps {
@@ -65,7 +66,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
             <span
               className={`ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[rec.status] || statusColors.pending}`}
             >
-              {t(rec.status as any)}
+              {t(rec.status as TranslationKey)}
             </span>
           </div>
 

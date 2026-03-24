@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ManagerDashboard } from "@/components/manager-dashboard";
 import { useLang } from "@/hooks/use-lang";
@@ -82,9 +83,9 @@ export default function ManagerPage() {
         <div className="text-center text-muted-foreground">
           <p className="text-lg font-medium">{t("accessDenied")}</p>
           <p className="mt-1">{t("needManager")}</p>
-          <a href="/" className="mt-4 inline-block text-primary hover:underline">
+          <Link href="/" className="mt-4 inline-block text-primary hover:underline">
             {t("goHome")}
-          </a>
+          </Link>
         </div>
       </div>
     );
