@@ -39,7 +39,7 @@ create table if not exists recordings (
   updated_at timestamptz default now()
 );
 
--- No RLS — all access control handled server-side via admin client
+-- RLS policies are defined in rls.sql — run that file after this one
 
 -- Realtime: enable for recordings table (queue status updates)
 alter publication supabase_realtime add table recordings;

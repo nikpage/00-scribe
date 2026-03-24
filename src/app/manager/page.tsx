@@ -17,7 +17,7 @@ interface ManagerRecording {
 }
 
 export default function ManagerPage() {
-  const { lang, t } = useLang();
+  const { t } = useLang();
   const [recordings, setRecordings] = useState<ManagerRecording[]>([]);
   const [loading, setLoading] = useState(true);
   const [isManager, setIsManager] = useState(false);

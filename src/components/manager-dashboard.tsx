@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [filterWorker, setFilterWorker] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
@@ -98,7 +98,7 @@ export function ManagerDashboard({ recordings }: ManagerDashboardProps) {
                 <td className="px-4 py-3 text-sm">{rec.profiles.name}</td>
                 <td className="px-4 py-3 font-medium">{rec.label}</td>
                 <td className="px-4 py-3 text-sm text-muted-foreground">
-                  {new Date(rec.recorded_at).toLocaleDateString("cs-CZ")}
+                  {new Date(rec.recorded_at).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US")}
                 </td>
                 <td className="px-4 py-3">
                   <span

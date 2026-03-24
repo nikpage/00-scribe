@@ -7,7 +7,7 @@ import { useRecordings } from "@/hooks/use-recordings";
 import { useLang } from "@/hooks/use-lang";
 
 export default function TranscriptsPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [userId, setUserId] = useState<string>();
   const [authed, setAuthed] = useState(false);
   const supabase = createClient();
@@ -100,7 +100,7 @@ export default function TranscriptsPage() {
                     <tr key={rec.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3 font-medium">{rec.label}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {new Date(rec.recorded_at).toLocaleDateString("cs-CZ")}
+                        {new Date(rec.recorded_at).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US")}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {rec.duration_seconds

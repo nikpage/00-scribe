@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useLang } from "@/hooks/use-lang";
 
 interface RecordingFormProps {
   onRecorded: (label: string, file: File) => void;
@@ -8,6 +9,7 @@ interface RecordingFormProps {
 }
 
 export function RecordingForm({ onRecorded, disabled }: RecordingFormProps) {
+  const { t } = useLang();
   const [label, setLabel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,7 +30,7 @@ export function RecordingForm({ onRecorded, disabled }: RecordingFormProps) {
     <div className="space-y-3">
       <input
         type="text"
-        placeholder="Client name (e.g. NovakJan)"
+        placeholder={t("clientName")}
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
@@ -46,7 +48,7 @@ export function RecordingForm({ onRecorded, disabled }: RecordingFormProps) {
         disabled={!label.trim() || disabled}
         className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
       >
-        Start Recording
+        {t("startRecording")}
       </button>
     </div>
   );

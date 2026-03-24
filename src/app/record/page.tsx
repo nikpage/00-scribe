@@ -78,6 +78,17 @@ export default function RecordPage() {
         }
       };
 
+      mediaRecorder.onerror = () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        wakeLockRef.current?.release().catch(() => {});
+        wakeLockRef.current = null;
+        setState("idle");
+        setError(t("recordFailed"));
+      };
+
       mediaRecorder.start(5000);
       setState("recording");
 
@@ -158,13 +169,13 @@ export default function RecordPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         console.error("DB insert failed:", data.error);
-        sessionStorage.setItem("scribe-error", data.error || "Save failed");
+        sessionStorage.setItem("scribe-error", data.error || t("saveFailed"));
       }
     } catch (err) {
       console.error("Save failed:", err);
       sessionStorage.setItem(
         "scribe-error",
-        err instanceof Error ? err.message : "Save failed"
+        err instanceof Error ? err.message : t("saveFailed")
       );
     }
 

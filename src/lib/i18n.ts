@@ -88,7 +88,13 @@ const translations = {
     loading: "Načítání...",
     audioLost: "Zvukový soubor ztracen — nahrajte znovu",
     uploadFailed: "Nahrávání selhalo",
+    transcriptionFailed: "Odeslání přepisu selhalo",
+    saveFailed: "Uložení selhalo",
+    dismiss: "zavřít",
     transcriptNotFound: "Přepis nenalezen.",
+    speaker: "Mluvčí",
+    registerWithPasskey: "Registrovat pomocí passkey",
+    emailPlaceholder: "vas@email.cz",
   },
   en: {
     appName: "Scribe",
@@ -170,7 +176,13 @@ const translations = {
     loading: "Loading...",
     audioLost: "Audio file lost — please re-record",
     uploadFailed: "Upload failed",
+    transcriptionFailed: "Transcription submission failed",
+    saveFailed: "Save failed",
+    dismiss: "dismiss",
     transcriptNotFound: "Transcript not found.",
+    speaker: "Speaker",
+    registerWithPasskey: "Register with passkey",
+    emailPlaceholder: "you@example.com",
   },
 } as const;
 

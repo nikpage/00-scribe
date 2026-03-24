@@ -50,7 +50,7 @@ export default function QueuePage() {
     const blob = await getRecordingBlob(recordingId);
 
     if (!blob) {
-      await updateStatus(recordingId, "failed", "Audio file lost — please re-record");
+      await updateStatus(recordingId, "failed", t("audioLost"));
       refetch();
       return;
     }
@@ -59,7 +59,7 @@ export default function QueuePage() {
     if (!recording) return;
 
     try {
-      // 1. Upload audio through server to Google Drive
+      // 1. Upload audio to Supabase Storage
       const formData = new FormData();
       formData.append("file", blob, recording.filename);
       formData.append("recordingId", recordingId);
@@ -72,7 +72,7 @@ export default function QueuePage() {
 
       if (!uploadRes.ok) {
         const errData = await uploadRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Upload failed");
+        throw new Error(errData.error || t("uploadFailed"));
       }
 
       await uploadRes.json();
@@ -86,17 +86,17 @@ export default function QueuePage() {
 
       if (!transcribeRes.ok) {
         const errData = await transcribeRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Transcription submission failed");
+        throw new Error(errData.error || t("transcriptionFailed"));
       }
 
-      // 3. Audio is on Drive — remove from IndexedDB
+      // 3. Audio is uploaded — remove from IndexedDB
       await deleteRecordingBlob(recordingId);
       refetch();
     } catch (err) {
       await updateStatus(
         recordingId,
         "failed",
-        err instanceof Error ? err.message : "Upload failed"
+        err instanceof Error ? err.message : t("uploadFailed")
       );
       refetch();
     }
@@ -146,7 +146,7 @@ export default function QueuePage() {
               onClick={() => setPageError("")}
               className="ml-2 font-medium underline"
             >
-              dismiss
+              {t("dismiss")}
             </button>
           </div>
         )}

@@ -17,7 +17,7 @@ interface Recording {
 }
 
 export default function TranscriptPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const params = useParams();
   const id = params.id as string;
   const [recording, setRecording] = useState<Recording | null>(null);
@@ -41,7 +41,7 @@ export default function TranscriptPage() {
   async function handleSaveSpeakers(speakers: Record<string, string>) {
     if (!recording) return;
 
-    await fetch("/api/drive", {
+    await fetch("/api/speakers", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ recordingId: recording.id, speakers }),
@@ -107,7 +107,7 @@ export default function TranscriptPage() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold">{recording.label}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {new Date(recording.recorded_at).toLocaleDateString("cs-CZ", {
+              {new Date(recording.recorded_at).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",

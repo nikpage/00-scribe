@@ -30,9 +30,10 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, lang: string): string {
+  const locale = lang === "cs" ? "cs-CZ" : "en-US";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("cs-CZ", {
+  return d.toLocaleDateString(locale, {
     day: "numeric",
     month: "numeric",
     year: "numeric",
@@ -42,7 +43,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   return (
     <div className="space-y-3">
       {recordings.map((rec) => (
@@ -54,7 +55,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-medium">{rec.label}</h3>
               <p className="text-sm text-muted-foreground">
-                {formatDate(rec.recorded_at)}
+                {formatDate(rec.recorded_at, lang)}
               </p>
               <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
                 <span>{formatDuration(rec.duration_seconds)}</span>

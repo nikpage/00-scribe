@@ -30,7 +30,7 @@ export function TranscriptViewer({
 
   function startEdit(speakerId: string) {
     setEditing(speakerId);
-    setEditValue(speakers[speakerId] || `Speaker ${speakerId}`);
+    setEditValue(speakers[speakerId] || `${t("speaker")} ${speakerId}`);
   }
 
   async function saveEdit() {

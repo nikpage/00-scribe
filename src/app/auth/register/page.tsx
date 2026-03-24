@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
+import { useLang } from "@/hooks/use-lang";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -10,6 +11,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLang();
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -63,13 +65,13 @@ export default function RegisterPage() {
     <div className="flex min-h-screen p-4 pt-12">
       <div className="w-full max-w-sm mx-auto space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Scribe</h1>
-          <p className="mt-2 text-muted-foreground">Create your account</p>
+          <h1 className="text-2xl font-bold">{t("appName")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("registerTitle")}</p>
         </div>
         <form onSubmit={handleRegister} className="space-y-4">
           <input
             type="text"
-            placeholder="Your name"
+            placeholder={t("yourName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -77,7 +79,7 @@ export default function RegisterPage() {
           />
           <input
             type="email"
-            placeholder="you@example.com"
+            placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -89,12 +91,12 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
           >
-            {loading ? "Registering..." : "Register with passkey"}
+            {loading ? t("registering") : t("registerWithPasskey")}
           </button>
         </form>
         <div className="text-center">
           <a href="/auth/login" className="text-sm text-primary hover:underline">
-            Already have an account? Sign in
+            {t("alreadyHaveAccount")}
           </a>
         </div>
       </div>
