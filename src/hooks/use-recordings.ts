@@ -17,6 +17,23 @@ export interface Recording {
   transcription_id: string | null;
   transcript: { utterances: { speaker: string; text: string }[] } | null;
   speakers: Record<string, string>;
+  analysis: {
+    summary: string;
+    keyTopics: string[];
+    questionQuality: { openQuestions: number; closedQuestions: number; ratio: number };
+    empathyScore: number;
+    actionItems: string[];
+    qualityScore: number;
+    qualityNotes: string;
+  } | null;
+  metrics: {
+    totalWords: number;
+    totalTurns: number;
+    durationMinutes: number;
+    speakerMetrics: Record<string, { words: number; turns: number; avgWordsPerTurn: number; talkRatio: number }>;
+    longestMonologue: { speaker: string; words: number };
+    avgTurnLength: number;
+  } | null;
   error: string | null;
   created_at: string;
   updated_at: string;

@@ -6,16 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { ManagerDashboard } from "@/components/manager-dashboard";
 import { useLang } from "@/hooks/use-lang";
 
-interface ManagerRecording {
-  id: string;
-  label: string;
-  filename: string;
-  recorded_at: string;
-  duration_seconds: number | null;
-  status: string;
-  error: string | null;
+import type { Recording } from "@/hooks/use-recordings";
+
+type ManagerRecording = Recording & {
   profiles: { name: string };
-}
+};
 
 export default function ManagerPage() {
   const { t } = useLang();
@@ -48,7 +43,7 @@ export default function ManagerPage() {
       // Fetch all recordings with worker names
       const { data } = await supabase
         .from("recordings")
-        .select("id, label, filename, recorded_at, duration_seconds, status, error, profiles(name)")
+        .select("*, profiles(name)")
         .order("created_at", { ascending: false });
 
       if (data) setRecordings(data as unknown as ManagerRecording[]);

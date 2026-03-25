@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import type { Recording } from "@/hooks/use-recordings";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/hooks/use-lang";
+import { RecordingAnalysis } from "@/components/recording-analysis";
 
 interface QueueTableProps {
   recordings: Recording[];
   onUpload: (id: string) => void;
   onRetry: (id: string) => void;
+  onRefetch?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -43,8 +46,10 @@ function formatDate(dateStr: string, lang: string): string {
   });
 }
 
-export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
+export function QueueTable({ recordings, onUpload, onRetry, onRefetch }: QueueTableProps) {
   const { lang, t } = useLang();
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   return (
     <div className="space-y-3">
       {recordings.map((rec) => (
@@ -52,7 +57,10 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
           key={rec.id}
           className="rounded-lg border border-border bg-background p-4"
         >
-          <div className="flex items-start justify-between">
+          <div
+            className="flex items-start justify-between cursor-pointer"
+            onClick={() => setExpanded(expanded === rec.id ? null : rec.id)}
+          >
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-medium">{rec.label}</h3>
               <p className="text-sm text-muted-foreground">
@@ -61,7 +69,18 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
               <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
                 <span>{formatDuration(rec.duration_seconds)}</span>
                 <span>{formatSize(rec.file_size_bytes)}</span>
+                {rec.analysis && (
+                  <span className="text-primary font-medium">
+                    {t("qualityScore")}: {rec.analysis.qualityScore}/5
+                  </span>
+                )}
               </div>
+              {/* Show summary inline if available */}
+              {rec.analysis && expanded !== rec.id && (
+                <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                  {rec.analysis.summary}
+                </p>
+              )}
             </div>
             <span
               className={`ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[rec.status] || statusColors.pending}`}
@@ -77,7 +96,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
           <div className="mt-3 flex gap-2">
             {rec.status === "pending" && (
               <button
-                onClick={() => onUpload(rec.id)}
+                onClick={(e) => { e.stopPropagation(); onUpload(rec.id); }}
                 className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"
               >
                 {t("upload")}
@@ -85,7 +104,7 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
             )}
             {rec.status === "failed" && (
               <button
-                onClick={() => onRetry(rec.id)}
+                onClick={(e) => { e.stopPropagation(); onRetry(rec.id); }}
                 className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
               >
                 {t("retry")}
@@ -95,11 +114,17 @@ export function QueueTable({ recordings, onUpload, onRetry }: QueueTableProps) {
               <a
                 href={`/transcript/${rec.id}`}
                 className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
+                onClick={(e) => e.stopPropagation()}
               >
                 {t("viewTranscript")}
               </a>
             )}
           </div>
+
+          {/* Expandable analysis section */}
+          {expanded === rec.id && (
+            <RecordingAnalysis recording={rec} onAnalysisComplete={onRefetch} />
+          )}
         </div>
       ))}
     </div>

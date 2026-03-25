@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRecordings } from "@/hooks/use-recordings";
 import { useLang } from "@/hooks/use-lang";
 import { QueueTable } from "@/components/queue-table";
+import { DashboardStats } from "@/components/dashboard-stats";
 import { getRecordingBlob, deleteRecordingBlob } from "@/lib/audio-store";
 
 export default function QueuePage() {
@@ -162,6 +163,7 @@ export default function QueuePage() {
           </div>
         ) : (
           <>
+            <DashboardStats recordings={recordings} />
             {recordings.some((r) => r.status === "pending") && (
               <button
                 onClick={handleUploadAll}
@@ -174,6 +176,7 @@ export default function QueuePage() {
               recordings={recordings}
               onUpload={handleUpload}
               onRetry={handleRetry}
+              onRefetch={refetch}
             />
           </>
         )}

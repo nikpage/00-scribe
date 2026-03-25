@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getProvider } from "@/lib/transcription";
+import { analyzeTranscript } from "@/lib/analysis/gemini";
+import { computeMetrics } from "@/lib/analysis/metrics";
 
 function getAdminClient() {
   return createClient(
@@ -80,12 +82,27 @@ export async function POST(request: Request) {
         .catch(() => {});
     }
 
+    // Compute metrics from transcript
+    const metrics = computeMetrics(result.utterances, recording.duration_seconds);
+
+    // Run AI analysis (non-blocking — update DB when ready)
+    let analysis = null;
+    try {
+      if (process.env.GEMINI_API_KEY) {
+        analysis = await analyzeTranscript(result.utterances, speakers);
+      }
+    } catch (err) {
+      console.error("AI analysis failed (non-fatal):", err);
+    }
+
     // Update recording
     await admin
       .from("recordings")
       .update({
         status: "done",
         transcript,
+        metrics,
+        analysis,
         drive_text_id: textPath,
         drive_audio_id: null,
         updated_at: new Date().toISOString(),
