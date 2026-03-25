@@ -134,6 +134,11 @@ const translations = {
     avgEmpathy: "Prům. empatie",
     drillDown: "Detail",
     backToOverview: "← Zpět na přehled",
+    // File upload
+    orUploadFile: "nebo nahrát soubor",
+    selectAudioFile: "Vybrat audio soubor",
+    uploadingFile: "Nahrávání souboru...",
+    fileSelected: "Vybraný soubor",
   },
   en: {
     appName: "Scribe",
@@ -261,6 +266,11 @@ const translations = {
     avgEmpathy: "Avg Empathy",
     drillDown: "Details",
     backToOverview: "← Back to overview",
+    // File upload
+    orUploadFile: "or upload a file",
+    selectAudioFile: "Select audio file",
+    uploadingFile: "Uploading file...",
+    fileSelected: "Selected file",
   },
 } as const;
 

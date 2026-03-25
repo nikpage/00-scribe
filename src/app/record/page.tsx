@@ -16,6 +16,8 @@ export default function RecordPage() {
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
   const [elapsed, setElapsed] = useState(0);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { lang, switchLang, t } = useLang();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -182,6 +184,72 @@ export default function RecordPage() {
     router.push("/queue");
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !label.trim()) return;
+
+    setError("");
+    setUploadingFile(true);
+
+    try {
+      const recordingId = crypto.randomUUID();
+      const filename = generateFilename(label);
+
+      // 1. Create recording row
+      const metaRes = await fetch("/api/recordings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: recordingId,
+          label: label.trim(),
+          filename,
+          recorded_at: new Date().toISOString(),
+          duration_seconds: null,
+          file_size_bytes: file.size,
+          speakers_expected: speakerCount,
+        }),
+      });
+
+      if (!metaRes.ok) {
+        const data = await metaRes.json().catch(() => ({}));
+        throw new Error(data.error || t("saveFailed"));
+      }
+
+      // 2. Upload audio file
+      const formData = new FormData();
+      formData.append("file", file, filename);
+      formData.append("recordingId", recordingId);
+      formData.append("filename", filename);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const data = await uploadRes.json().catch(() => ({}));
+        throw new Error(data.error || t("uploadFailed"));
+      }
+
+      // 3. Submit for transcription
+      const transcribeRes = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordingId }),
+      });
+
+      if (!transcribeRes.ok) {
+        const data = await transcribeRes.json().catch(() => ({}));
+        throw new Error(data.error || t("transcriptionFailed"));
+      }
+
+      router.push("/queue");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("uploadFailed"));
+      setUploadingFile(false);
+    }
+  }
+
   if (!authed) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -235,10 +303,31 @@ export default function RecordPage() {
 
             <button
               onClick={startRecording}
-              disabled={!label.trim()}
+              disabled={!label.trim() || uploadingFile}
               className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
             >
               {t("startRecording")}
+            </button>
+
+            <div className="relative flex items-center gap-3">
+              <div className="flex-1 border-t border-border" />
+              <span className="text-xs text-muted-foreground">{t("orUploadFile")}</span>
+              <div className="flex-1 border-t border-border" />
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!label.trim() || uploadingFile}
+              className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {uploadingFile ? t("uploadingFile") : t("selectAudioFile")}
             </button>
           </div>
         )}
