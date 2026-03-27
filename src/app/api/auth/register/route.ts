@@ -68,31 +68,28 @@ export async function POST(request: Request) {
       const { credential: cred } = verification.registrationInfo;
       const admin = getAdminClient();
 
-      // Try to create user, or find existing one
+      // Find or create user
       let userId: string;
 
-      const { data: authData, error: authError } =
-        await admin.auth.admin.createUser({
-          email,
-          email_confirm: true,
-          user_metadata: { name },
-        });
+      // Check if user already exists in auth
+      const { data: users } = await admin.auth.admin.listUsers();
+      const existing = users?.users.find((u) => u.email === email);
 
-      if (authError) {
-        // User already exists — find them and add the new passkey
-        const { data: users } = await admin.auth.admin.listUsers();
-        const existing = users?.users.find((u) => u.email === email);
-        if (!existing) {
-          return NextResponse.json({ error: authError.message }, { status: 400 });
-        }
+      if (existing) {
         userId = existing.id;
-
-        // Ensure profile exists
+        await admin.auth.admin.updateUserById(userId, { user_metadata: { name } });
         await admin.from("profiles").upsert({ id: userId, name });
-
-        // Delete old credentials for this user (they don't work anymore)
         await admin.from("credentials").delete().eq("user_id", userId);
       } else {
+        const { data: authData, error: authError } =
+          await admin.auth.admin.createUser({
+            email,
+            email_confirm: true,
+            user_metadata: { name },
+          });
+        if (authError) {
+          return NextResponse.json({ error: authError.message }, { status: 400 });
+        }
         userId = authData.user.id;
         await admin.from("profiles").insert({ id: userId, name });
       }
