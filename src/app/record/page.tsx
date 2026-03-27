@@ -7,6 +7,7 @@ import { generateFilename } from "@/lib/filename";
 import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
+import { BottomNav } from "@/components/bottom-nav";
 
 type RecordingState = "idle" | "recording" | "saving";
 
@@ -259,7 +260,7 @@ export default function RecordPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 pt-8">
+    <div className="min-h-screen p-4 pt-8 pb-20">
       <div className="w-full max-w-sm mx-auto space-y-6">
         <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
         <h1 className="text-2xl font-bold text-center">{t("newRecording")}</h1>
@@ -366,14 +367,9 @@ export default function RecordPage() {
           <p className="text-sm text-destructive text-center">{error}</p>
         )}
 
-        {state === "idle" && (
-          <div className="text-center">
-            <a href="/queue" className="text-sm text-primary hover:underline">
-              {t("backToQueue")}
-            </a>
-          </div>
-        )}
       </div>
+
+      <BottomNav active="record" />
     </div>
   );
 }
