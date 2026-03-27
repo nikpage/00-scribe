@@ -6,9 +6,6 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createSSRClient } from "@/lib/supabase/server";
 
-const rpID = process.env.WEBAUTHN_RP_ID!;
-const origin = process.env.WEBAUTHN_ORIGIN!;
-
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,9 +13,22 @@ function getAdminClient() {
   );
 }
 
+function getWebAuthnParams(request: Request) {
+  const originHeader = request.headers.get("origin");
+  if (originHeader) {
+    const url = new URL(originHeader);
+    return { origin: originHeader, rpID: url.hostname };
+  }
+  return {
+    origin: process.env.WEBAUTHN_ORIGIN!,
+    rpID: process.env.WEBAUTHN_RP_ID!,
+  };
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { step, credential, challenge: clientChallenge } = body;
+  const { origin, rpID } = getWebAuthnParams(request);
 
   if (step === "options") {
     const options = await generateAuthenticationOptions({
