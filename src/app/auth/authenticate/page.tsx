@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
+import { useLang } from "@/hooks/use-lang";
 
 export default function AuthenticatePage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLang();
 
   async function handleAuthenticate() {
     setError("");
@@ -56,9 +58,9 @@ export default function AuthenticatePage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4 text-center">
-        <h1 className="text-2xl font-bold">Scribe</h1>
+        <h1 className="text-2xl font-bold">{t("appName")}</h1>
         {loading && !error && (
-          <p className="text-muted-foreground">Authenticating with passkey...</p>
+          <p className="text-muted-foreground">{t("authenticating")}</p>
         )}
         {error && (
           <div className="space-y-4">
@@ -67,7 +69,7 @@ export default function AuthenticatePage() {
               onClick={handleAuthenticate}
               className="rounded-lg bg-primary px-6 py-3 font-medium text-white hover:bg-primary-light"
             >
-              Try again
+              {t("tryAgain")}
             </button>
           </div>
         )}

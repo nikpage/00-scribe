@@ -44,7 +44,7 @@ export function TranscriptViewer({
   }
 
   function getSpeakerName(id: string): string {
-    return speakers[id] || `Speaker ${id}`;
+    return speakers[id] || `${t("speaker")} ${id}`;
   }
 
   // Assign colors to speakers

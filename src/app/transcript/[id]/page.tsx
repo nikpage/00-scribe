@@ -72,7 +72,7 @@ export default function TranscriptPage() {
         {/* Sidebar */}
         <aside className="hidden w-64 shrink-0 border-r border-border bg-muted/50 md:block">
           <div className="p-6">
-            <h1 className="text-xl font-bold">Scribe</h1>
+            <h1 className="text-xl font-bold">{t("appName")}</h1>
           </div>
           <nav className="space-y-1 px-3">
             <a
