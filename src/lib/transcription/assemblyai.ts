@@ -9,7 +9,7 @@ export const assemblyaiProvider: TranscriptionProvider = {
   async submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }) {
     const transcript = await client.transcripts.submit({
       audio_url: audioUrl,
-      language_detection: true,
+      language_code: "cs",
       speaker_labels: true,
       speakers_expected: options?.speakersExpected || 2,
       webhook_url: `${process.env.WEBAUTHN_ORIGIN}/api/webhook`,
