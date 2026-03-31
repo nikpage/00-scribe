@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProvider } from "@/lib/transcription";
 
+export const maxDuration = 120;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {

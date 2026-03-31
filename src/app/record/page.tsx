@@ -68,10 +68,13 @@ export default function RecordPage() {
 
       await clearChunks();
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+        ? "audio/ogg;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
           ? "audio/webm;codecs=opus"
-          : "audio/webm",
+          : "audio/webm";
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
         audioBitsPerSecond: 128000,
       });
       mediaRecorderRef.current = mediaRecorder;

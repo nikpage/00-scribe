@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { getProvider } from "@/lib/transcription";
+import { speechmaticsProvider } from "@/lib/transcription/speechmatics";
 import { processTranscriptionResult } from "@/lib/transcription/process-result";
 
 export async function POST(request: Request) {
   try {
-    const provider = getProvider();
-    const isValid = await provider.verifyWebhook(request.clone());
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid webhook" }, { status: 401 });
-    }
-
-    const result = await provider.parseWebhook(request);
+    const result = await speechmaticsProvider.parseWebhook(request);
     const outcome = await processTranscriptionResult(result, result.id);
 
     if (!outcome.found) {
@@ -19,7 +13,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ status: outcome.status });
   } catch (err) {
-    console.error("Webhook error:", err);
+    console.error("Speechmatics webhook error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
