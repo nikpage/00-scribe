@@ -11,6 +11,7 @@ interface QueueTableProps {
   onUpload: (id: string) => void;
   onRetry: (id: string) => void;
   onRetranscribe: (id: string) => void;
+  onArchive: (id: string) => void;
   retranscribingId?: string | null;
   onRefetch?: () => void;
 }
@@ -48,7 +49,7 @@ function formatDate(dateStr: string, lang: string): string {
   });
 }
 
-export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, retranscribingId, onRefetch }: QueueTableProps) {
+export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onArchive, retranscribingId, onRefetch }: QueueTableProps) {
   const { lang, t } = useLang();
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -121,6 +122,12 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, retr
                     {retranscribingId === rec.id ? t("retranscribing") : t("retranscribe")}
                   </button>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onArchive(rec.id); }}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                >
+                  {t("dismissError")}
+                </button>
               </>
             )}
             {rec.status === "done" && (
@@ -138,6 +145,12 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, retr
                   className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
                 >
                   {retranscribingId === rec.id ? t("retranscribing") : t("retranscribe")}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onArchive(rec.id); }}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                >
+                  {t("archive")}
                 </button>
               </>
             )}

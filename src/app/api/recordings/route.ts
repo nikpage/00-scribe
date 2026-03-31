@@ -18,6 +18,7 @@ export async function GET() {
     .from("recordings")
     .select("*")
     .eq("user_id", user.id)
+    .eq("archived", false)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -77,21 +78,20 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { recordingId, status, error: errorMsg } = await request.json();
+  const { recordingId, status, error: errorMsg, archived } = await request.json();
 
-  if (!recordingId || !status) {
-    return NextResponse.json({ error: "Missing recordingId or status" }, { status: 400 });
+  if (!recordingId) {
+    return NextResponse.json({ error: "Missing recordingId" }, { status: 400 });
   }
 
   const admin = createAdminClient();
 
   const updateData: Record<string, unknown> = {
-    status,
     updated_at: new Date().toISOString(),
   };
-  if (errorMsg !== undefined) {
-    updateData.error = errorMsg;
-  }
+  if (status !== undefined) updateData.status = status;
+  if (errorMsg !== undefined) updateData.error = errorMsg;
+  if (archived !== undefined) updateData.archived = archived;
 
   const { error } = await admin
     .from("recordings")

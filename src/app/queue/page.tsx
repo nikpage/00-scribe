@@ -118,6 +118,15 @@ export default function QueuePage() {
     await handleUpload(recordingId);
   }
 
+  async function handleArchive(recordingId: string) {
+    await fetch("/api/recordings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordingId, archived: true }),
+    });
+    refetch();
+  }
+
   async function handleRetranscribe(recordingId: string) {
     setRetranscribingId(recordingId);
     try {
@@ -209,6 +218,7 @@ export default function QueuePage() {
               onUpload={handleUpload}
               onRetry={handleRetry}
               onRetranscribe={handleRetranscribe}
+              onArchive={handleArchive}
               retranscribingId={retranscribingId}
               onRefetch={refetch}
             />

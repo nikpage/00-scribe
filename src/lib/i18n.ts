@@ -137,6 +137,8 @@ const translations = {
     // File upload
     retranscribe: "Přepsat znovu",
     retranscribing: "Přepisování...",
+    archive: "Archivovat",
+    dismissError: "Zavřít",
     orUploadFile: "nebo nahrát soubor",
     selectAudioFile: "Vybrat audio soubor",
     uploadingFile: "Nahrávání souboru...",
@@ -271,6 +273,8 @@ const translations = {
     // File upload
     retranscribe: "Re-transcribe",
     retranscribing: "Re-transcribing...",
+    archive: "Archive",
+    dismissError: "Dismiss",
     orUploadFile: "or upload a file",
     selectAudioFile: "Select audio file",
     uploadingFile: "Uploading file...",
