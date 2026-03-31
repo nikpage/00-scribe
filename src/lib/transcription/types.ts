@@ -11,7 +11,7 @@ export interface TranscriptionResult {
 }
 
 export interface TranscriptionProvider {
-  submit(audioUrl: string, options?: { speakersExpected?: number }): Promise<{ id: string }>;
+  submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }): Promise<{ id: string }>;
   getResult(id: string): Promise<TranscriptionResult>;
   verifyWebhook(request: Request): Promise<boolean>;
   parseWebhook(request: Request): Promise<TranscriptionResult>;

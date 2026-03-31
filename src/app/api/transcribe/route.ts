@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     const { data: recording } = await admin
       .from("recordings")
-      .select("drive_audio_id, speakers")
+      .select("drive_audio_id, speakers, language")
       .eq("id", recordingId)
       .single();
 
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     const provider = getProvider();
     const { id: transcriptionId } = await provider.submit(urlData.signedUrl, {
       speakersExpected: speakersExpected,
+      languageCode: recording.language || undefined,
     });
 
     await admin

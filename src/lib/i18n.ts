@@ -135,6 +135,8 @@ const translations = {
     drillDown: "Detail",
     backToOverview: "← Zpět na přehled",
     // File upload
+    retranscribe: "Přepsat znovu",
+    retranscribing: "Přepisování...",
     orUploadFile: "nebo nahrát soubor",
     selectAudioFile: "Vybrat audio soubor",
     uploadingFile: "Nahrávání souboru...",
@@ -267,6 +269,8 @@ const translations = {
     drillDown: "Details",
     backToOverview: "← Back to overview",
     // File upload
+    retranscribe: "Re-transcribe",
+    retranscribing: "Re-transcribing...",
     orUploadFile: "or upload a file",
     selectAudioFile: "Select audio file",
     uploadingFile: "Uploading file...",

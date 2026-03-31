@@ -72,6 +72,7 @@ export default function RecordPage() {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
           ? "audio/webm;codecs=opus"
           : "audio/webm",
+        audioBitsPerSecond: 128000,
       });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -166,6 +167,7 @@ export default function RecordPage() {
           duration_seconds: elapsed,
           file_size_bytes: blob.size,
           speakers_expected: speakerCount,
+          language: lang,
         }),
       });
 

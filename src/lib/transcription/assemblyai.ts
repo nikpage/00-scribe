@@ -6,11 +6,13 @@ const client = new AssemblyAI({
 });
 
 export const assemblyaiProvider: TranscriptionProvider = {
-  async submit(audioUrl: string, options?: { speakersExpected?: number }) {
+  async submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }) {
     const transcript = await client.transcripts.submit({
       audio_url: audioUrl,
       speech_models: ["universal-2"],
-      language_detection: true,
+      ...(options?.languageCode
+        ? { language_code: options.languageCode }
+        : { language_detection: true }),
       speaker_labels: true,
       speakers_expected: options?.speakersExpected || 2,
       webhook_url: `${process.env.WEBAUTHN_ORIGIN}/api/webhook`,

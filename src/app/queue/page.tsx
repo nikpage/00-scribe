@@ -39,6 +39,7 @@ export default function QueuePage() {
   }, []);
 
   const { recordings, loading, refetch } = useRecordings(userId);
+  const [retranscribingId, setRetranscribingId] = useState<string | null>(null);
 
   async function updateStatus(recordingId: string, status: string, error?: string) {
     await fetch("/api/recordings", {
@@ -117,6 +118,36 @@ export default function QueuePage() {
     await handleUpload(recordingId);
   }
 
+  async function handleRetranscribe(recordingId: string) {
+    setRetranscribingId(recordingId);
+    try {
+      await updateStatus(recordingId, "transcribing");
+      refetch();
+
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordingId }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Re-transcription failed");
+      }
+
+      refetch();
+    } catch (err) {
+      await updateStatus(
+        recordingId,
+        "failed",
+        err instanceof Error ? err.message : "Re-transcription failed"
+      );
+      refetch();
+    } finally {
+      setRetranscribingId(null);
+    }
+  }
+
   if (!authed) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -177,6 +208,8 @@ export default function QueuePage() {
               recordings={recordings}
               onUpload={handleUpload}
               onRetry={handleRetry}
+              onRetranscribe={handleRetranscribe}
+              retranscribingId={retranscribingId}
               onRefetch={refetch}
             />
           </>
