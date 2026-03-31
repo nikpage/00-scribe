@@ -74,14 +74,6 @@ export async function POST(request: Request) {
         upsert: true,
       });
 
-    // Delete audio from storage
-    if (recording.drive_audio_id) {
-      await admin.storage
-        .from("recordings")
-        .remove([recording.drive_audio_id])
-        .catch(() => {});
-    }
-
     // Compute metrics from transcript
     const metrics = computeMetrics(result.utterances, recording.duration_seconds);
 
@@ -104,7 +96,6 @@ export async function POST(request: Request) {
         metrics,
         analysis,
         drive_text_id: textPath,
-        drive_audio_id: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", recording.id);
