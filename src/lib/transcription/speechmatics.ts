@@ -24,7 +24,7 @@ export const speechmaticsProvider: TranscriptionProvider = {
         language: options?.languageCode || "cs",
         diarization: "speaker",
         speaker_diarization_config: {
-          speaker_sensitivity: 0.7,
+          speaker_sensitivity: 0.9,
         },
       },
       notification_config: [
