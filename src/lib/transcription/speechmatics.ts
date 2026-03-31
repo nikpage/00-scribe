@@ -22,9 +22,10 @@ export const speechmaticsProvider: TranscriptionProvider = {
       type: "transcription",
       transcription_config: {
         language: options?.languageCode || "cs",
+        operating_point: "enhanced",
         diarization: "speaker",
         speaker_diarization_config: {
-          speaker_sensitivity: 0.9,
+          speaker_sensitivity: 0.7,
         },
       },
       notification_config: [
