@@ -1,13 +1,4 @@
-import { writeFileSync, readFileSync, unlinkSync } from "fs";
-import { execFileSync } from "child_process";
-import { join } from "path";
-import { tmpdir } from "os";
-import { randomUUID } from "crypto";
 import type { TranscriptionProvider } from "./types";
-
-// ffmpeg-static provides the path to a statically-linked ffmpeg binary
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const ffmpegPath: string = require("ffmpeg-static");
 
 const API_BASE = "https://asr.api.speechmatics.com/v2";
 
@@ -19,57 +10,14 @@ function getHeaders() {
 
 export const speechmaticsProvider: TranscriptionProvider = {
   async submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }) {
-    // 1. Download audio from signed URL
+    // Download audio from signed URL
     const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) {
       throw new Error(`Failed to download audio (${audioRes.status})`);
     }
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-    const contentType = audioRes.headers.get("content-type") || "";
+    const audioBuffer = await audioRes.arrayBuffer();
 
-    // 2. Convert to OGG if not already in a supported format
-    //    Supported: wav, mp3, aac, ogg, mpeg, amr, m4a, mp4, flac
-    const needsConversion = contentType.includes("webm") ||
-      (!contentType.includes("ogg") &&
-       !contentType.includes("wav") &&
-       !contentType.includes("mp3") &&
-       !contentType.includes("flac") &&
-       !contentType.includes("mp4") &&
-       !contentType.includes("m4a") &&
-       !contentType.includes("aac") &&
-       !contentType.includes("mpeg") &&
-       !contentType.includes("amr"));
-
-    let finalBuffer: Buffer;
-    let finalMimeType: string;
-    let finalFilename: string;
-
-    if (needsConversion) {
-      const id = randomUUID();
-      const tmpIn = join(tmpdir(), `sm-in-${id}.webm`);
-      const tmpOut = join(tmpdir(), `sm-out-${id}.ogg`);
-
-      try {
-        writeFileSync(tmpIn, audioBuffer);
-        execFileSync(ffmpegPath, [
-          "-y", "-i", tmpIn,
-          "-c:a", "libopus", "-b:a", "128k", "-ar", "16000", "-ac", "1",
-          tmpOut,
-        ], { stdio: "pipe" });
-        finalBuffer = readFileSync(tmpOut);
-        finalMimeType = "audio/ogg";
-        finalFilename = "audio.ogg";
-      } finally {
-        try { unlinkSync(tmpIn); } catch { /* ignore */ }
-        try { unlinkSync(tmpOut); } catch { /* ignore */ }
-      }
-    } else {
-      finalBuffer = audioBuffer;
-      finalMimeType = contentType.includes("ogg") ? "audio/ogg" : contentType;
-      finalFilename = contentType.includes("ogg") ? "audio.ogg" : "audio.bin";
-    }
-
-    // 3. Submit to Speechmatics via file upload
+    // Submit to Speechmatics via file upload
     const config = {
       type: "transcription",
       transcription_config: {
@@ -91,8 +39,8 @@ export const speechmaticsProvider: TranscriptionProvider = {
     formData.append("config", JSON.stringify(config));
     formData.append(
       "data_file",
-      new Blob([new Uint8Array(finalBuffer)], { type: finalMimeType }),
-      finalFilename
+      new Blob([audioBuffer], { type: "audio/ogg" }),
+      "audio.ogg"
     );
 
     const res = await fetch(`${API_BASE}/jobs`, {
