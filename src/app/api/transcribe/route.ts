@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const provider = getProvider();
     const { id: transcriptionId } = await provider.submit(urlData.signedUrl, {
       speakersExpected: speakersExpected,
-      languageCode: recording.language || undefined,
+      languageCode: "cs",
     });
 
     await admin
