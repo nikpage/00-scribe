@@ -105,12 +105,23 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, retr
               </button>
             )}
             {rec.status === "failed" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRetry(rec.id); }}
-                className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-              >
-                {t("retry")}
-              </button>
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRetry(rec.id); }}
+                  className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                >
+                  {t("retry")}
+                </button>
+                {rec.drive_audio_id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRetranscribe(rec.id); }}
+                    disabled={retranscribingId === rec.id}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    {retranscribingId === rec.id ? t("retranscribing") : t("retranscribe")}
+                  </button>
+                )}
+              </>
             )}
             {rec.status === "done" && (
               <>
