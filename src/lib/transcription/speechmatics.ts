@@ -10,6 +10,13 @@ function getHeaders() {
 
 export const speechmaticsProvider: TranscriptionProvider = {
   async submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }) {
+    // Download audio from signed URL
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) {
+      throw new Error(`Failed to download audio (${audioRes.status})`);
+    }
+    const audioBuffer = await audioRes.arrayBuffer();
+
     const config = {
       type: "transcription",
       transcription_config: {
@@ -20,9 +27,6 @@ export const speechmaticsProvider: TranscriptionProvider = {
           speaker_sensitivity: 0.7,
         },
       },
-      fetch_data: {
-        url: audioUrl,
-      },
       notification_config: [
         {
           url: `${process.env.WEBAUTHN_ORIGIN}/api/webhook/speechmatics`,
@@ -31,15 +35,18 @@ export const speechmaticsProvider: TranscriptionProvider = {
       ],
     };
 
-    console.log(`[Speechmatics] submitting via fetch_data URL`);
+    const formData = new FormData();
+    formData.append("config", JSON.stringify(config));
+    formData.append(
+      "data_file",
+      new Blob([audioBuffer], { type: "audio/wav" }),
+      "audio.wav"
+    );
 
     const res = await fetch(`${API_BASE}/jobs`, {
       method: "POST",
-      headers: {
-        ...getHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(config),
+      headers: getHeaders(),
+      body: formData,
     });
 
     if (!res.ok) {

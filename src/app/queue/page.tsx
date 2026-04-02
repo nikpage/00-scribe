@@ -8,6 +8,7 @@ import { useLang } from "@/hooks/use-lang";
 import { QueueTable } from "@/components/queue-table";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { getRecordingBlob, deleteRecordingBlob } from "@/lib/audio-store";
+import { encodeWav } from "@/lib/encode-wav";
 import { BottomNav } from "@/components/bottom-nav";
 
 export default function QueuePage() {
@@ -62,9 +63,11 @@ export default function QueuePage() {
     if (!recording) return;
 
     try {
-      // 1. Upload audio to Supabase Storage
+      // 1. Convert to WAV (Speechmatics doesn't support WebM) and upload
+      const wavBlob = await encodeWav(blob);
+      const wavFilename = recording.filename.replace(/\.[^.]+$/, ".wav");
       const formData = new FormData();
-      formData.append("file", blob, recording.filename);
+      formData.append("file", wavBlob, wavFilename);
       formData.append("recordingId", recordingId);
       formData.append("filename", recording.filename);
 
