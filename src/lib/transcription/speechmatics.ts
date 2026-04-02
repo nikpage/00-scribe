@@ -16,6 +16,7 @@ export const speechmaticsProvider: TranscriptionProvider = {
       throw new Error(`Failed to download audio (${audioRes.status})`);
     }
     const audioBuffer = await audioRes.arrayBuffer();
+    const contentType = audioRes.headers.get("content-type") || "audio/webm";
 
     // Submit to Speechmatics via file upload
     const config = {
@@ -38,10 +39,11 @@ export const speechmaticsProvider: TranscriptionProvider = {
 
     const formData = new FormData();
     formData.append("config", JSON.stringify(config));
+    const ext = contentType.includes("webm") ? "webm" : contentType.includes("ogg") ? "ogg" : "wav";
     formData.append(
       "data_file",
-      new Blob([audioBuffer], { type: "audio/ogg" }),
-      "audio.ogg"
+      new Blob([audioBuffer], { type: contentType }),
+      `audio.${ext}`
     );
 
     const res = await fetch(`${API_BASE}/jobs`, {
