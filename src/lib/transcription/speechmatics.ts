@@ -17,6 +17,7 @@ export const speechmaticsProvider: TranscriptionProvider = {
     }
     const audioBuffer = await audioRes.arrayBuffer();
     const contentType = audioRes.headers.get("content-type") || "audio/webm";
+    console.log(`[Speechmatics] audio size=${audioBuffer.byteLength}, content-type="${contentType}"`);
 
     // Submit to Speechmatics via file upload
     const config = {
