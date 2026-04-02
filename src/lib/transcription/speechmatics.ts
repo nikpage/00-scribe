@@ -10,16 +10,6 @@ function getHeaders() {
 
 export const speechmaticsProvider: TranscriptionProvider = {
   async submit(audioUrl: string, options?: { speakersExpected?: number; languageCode?: string }) {
-    // Download audio from signed URL
-    const audioRes = await fetch(audioUrl);
-    if (!audioRes.ok) {
-      throw new Error(`Failed to download audio (${audioRes.status})`);
-    }
-    const audioBuffer = await audioRes.arrayBuffer();
-    const contentType = audioRes.headers.get("content-type") || "audio/webm";
-    console.log(`[Speechmatics] audio size=${audioBuffer.byteLength}, content-type="${contentType}", first4bytes="${new Uint8Array(audioBuffer.slice(0, 4)).join(",")}"`);
-
-    // Submit to Speechmatics via file upload
     const config = {
       type: "transcription",
       transcription_config: {
@@ -30,6 +20,9 @@ export const speechmaticsProvider: TranscriptionProvider = {
           speaker_sensitivity: 0.7,
         },
       },
+      fetch_data: {
+        url: audioUrl,
+      },
       notification_config: [
         {
           url: `${process.env.WEBAUTHN_ORIGIN}/api/webhook/speechmatics`,
@@ -38,21 +31,15 @@ export const speechmaticsProvider: TranscriptionProvider = {
       ],
     };
 
-    const formData = new FormData();
-    formData.append("config", JSON.stringify(config));
-    // Strip codec params — Speechmatics infers codec from the container
-    const mimeBase = contentType.split(";")[0].trim();
-    const ext = mimeBase.includes("webm") ? "webm" : mimeBase.includes("ogg") ? "ogg" : "wav";
-    formData.append(
-      "data_file",
-      new Blob([audioBuffer], { type: mimeBase }),
-      `audio.${ext}`
-    );
+    console.log(`[Speechmatics] submitting via fetch_data URL`);
 
     const res = await fetch(`${API_BASE}/jobs`, {
       method: "POST",
-      headers: getHeaders(),
-      body: formData,
+      headers: {
+        ...getHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
     });
 
     if (!res.ok) {
