@@ -17,7 +17,7 @@ export const speechmaticsProvider: TranscriptionProvider = {
     }
     const audioBuffer = await audioRes.arrayBuffer();
     const contentType = audioRes.headers.get("content-type") || "audio/webm";
-    console.log(`[Speechmatics] audio size=${audioBuffer.byteLength}, content-type="${contentType}"`);
+    console.log(`[Speechmatics] audio size=${audioBuffer.byteLength}, content-type="${contentType}", first4bytes="${new Uint8Array(audioBuffer.slice(0, 4)).join(",")}"`);
 
     // Submit to Speechmatics via file upload
     const config = {
@@ -40,10 +40,12 @@ export const speechmaticsProvider: TranscriptionProvider = {
 
     const formData = new FormData();
     formData.append("config", JSON.stringify(config));
-    const ext = contentType.includes("webm") ? "webm" : contentType.includes("ogg") ? "ogg" : "wav";
+    // Strip codec params — Speechmatics infers codec from the container
+    const mimeBase = contentType.split(";")[0].trim();
+    const ext = mimeBase.includes("webm") ? "webm" : mimeBase.includes("ogg") ? "ogg" : "wav";
     formData.append(
       "data_file",
-      new Blob([audioBuffer], { type: contentType }),
+      new Blob([audioBuffer], { type: mimeBase }),
       `audio.${ext}`
     );
 
