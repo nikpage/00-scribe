@@ -11,8 +11,12 @@ import { BottomNav } from "@/components/bottom-nav";
 
 type RecordingState = "idle" | "recording" | "saving";
 
+type ClientSuggestion = { id: string; name: string; address: string | null };
+
 export default function RecordPage() {
   const [label, setLabel] = useState("");
+  const [address, setAddress] = useState("");
+  const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   const [speakerCount, setSpeakerCount] = useState(2);
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
@@ -47,6 +51,32 @@ export default function RecordPage() {
       wakeLockRef.current?.release().catch(() => {});
     };
   }, []);
+
+  // Debounced client-name autocomplete.
+  useEffect(() => {
+    const q = label.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setSuggestions(data.clients || []);
+      } catch {
+        // Ignore network errors on suggestions — they're optional UX.
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [label]);
+
+  function pickSuggestion(c: ClientSuggestion) {
+    setLabel(c.name);
+    setAddress(c.address || "");
+    setSuggestions([]);
+  }
 
   function formatTime(seconds: number): string {
     const h = Math.floor(seconds / 3600);
@@ -165,6 +195,7 @@ export default function RecordPage() {
         body: JSON.stringify({
           id: recordingId,
           label: label.trim(),
+          address: address.trim() || null,
           filename,
           recorded_at: new Date().toISOString(),
           duration_seconds: elapsed,
@@ -208,6 +239,7 @@ export default function RecordPage() {
         body: JSON.stringify({
           id: recordingId,
           label: label.trim(),
+          address: address.trim() || null,
           filename,
           recorded_at: new Date().toISOString(),
           duration_seconds: null,
@@ -272,7 +304,7 @@ export default function RecordPage() {
 
         {state === "idle" && (
           <div className="space-y-4">
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium mb-1">
                 {t("clientNameLabel")}
               </label>
@@ -282,6 +314,39 @@ export default function RecordPage() {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                autoComplete="off"
+              />
+              {suggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-border bg-background shadow-lg">
+                  {suggestions.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => pickSuggestion(c)}
+                        className="block w-full px-4 py-3 text-left text-sm hover:bg-muted"
+                      >
+                        <div className="font-medium">{c.name}</div>
+                        {c.address && (
+                          <div className="text-xs text-muted-foreground">{c.address}</div>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                {t("addressLabel")}
+              </label>
+              <input
+                type="text"
+                placeholder={t("addressPlaceholder")}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                autoComplete="off"
               />
             </div>
 
