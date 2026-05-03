@@ -10,6 +10,7 @@ interface ClientRecord {
   id: string;
   name: string;
   address: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -36,6 +37,12 @@ export default function ClientDetailPage() {
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -43,6 +50,7 @@ export default function ClientDetailPage() {
         router.replace("/auth/login");
         return;
       }
+      setUserId(user.id);
       setAuthed(true);
       fetch(`/api/clients/${id}`)
         .then(async (r) => {
@@ -60,6 +68,39 @@ export default function ClientDetailPage() {
         .finally(() => setLoading(false));
     });
   }, [id, supabase, router]);
+
+  function openEdit() {
+    if (!client) return;
+    setEditName(client.name);
+    setEditAddress(client.address || "");
+    setEditError("");
+    setEditing(true);
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setSubmitting(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName, address: editAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditError(data.error || t("saveFailed"));
+        return;
+      }
+      setClient((c) => (c ? { ...c, name: data.client.name, address: data.client.address } : c));
+      setEditing(false);
+    } catch {
+      setEditError(t("saveFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function startNewVisit() {
     if (!client) return;
@@ -138,13 +179,73 @@ export default function ClientDetailPage() {
                 <p className="text-sm text-muted-foreground">{client.address}</p>
               )}
             </div>
-            <button
-              onClick={startNewVisit}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
-            >
-              {t("newVisit")}
-            </button>
+            <div className="flex gap-2">
+              {client.created_by === userId && !editing && (
+                <button
+                  onClick={openEdit}
+                  className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  {t("edit")}
+                </button>
+              )}
+              <button
+                onClick={startNewVisit}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+              >
+                {t("newVisit")}
+              </button>
+            </div>
           </div>
+
+          {editing && (
+            <form
+              onSubmit={submitEdit}
+              className="mt-4 space-y-3 rounded-lg border border-border bg-background p-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {t("clientNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {t("addressLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                  autoComplete="off"
+                />
+              </div>
+              {editError && <p className="text-sm text-destructive">{editError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={!editName.trim() || submitting}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light disabled:opacity-50"
+                >
+                  {submitting ? t("saving") : t("save")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium hover:bg-border"
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+            </form>
+          )}
 
           {recurringTopics.length > 0 && (
             <section className="mt-6">

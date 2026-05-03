@@ -106,6 +106,8 @@ const translations = {
     newVisit: "Nová návštěva",
     recurringTopics: "Opakující se témata",
     allVisits: "Všechny návštěvy",
+    addClient: "Přidat klienta",
+    edit: "Upravit",
     registerWithPasskey: "Registrovat pomocí passkey",
     emailPlaceholder: "vas@email.cz",
     // Dashboard
@@ -255,6 +257,8 @@ const translations = {
     newVisit: "New visit",
     recurringTopics: "Recurring topics",
     allVisits: "All visits",
+    addClient: "Add client",
+    edit: "Edit",
     registerWithPasskey: "Register with passkey",
     emailPlaceholder: "you@example.com",
     // Dashboard

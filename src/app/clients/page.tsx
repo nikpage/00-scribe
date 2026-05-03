@@ -11,7 +11,7 @@ interface ClientSummary {
   name: string;
   address: string | null;
   visits: number;
-  last_visit: string;
+  last_visit: string | null;
   action_count: number;
 }
 
@@ -20,8 +20,19 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newAddress, setNewAddress] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const supabase = createClient();
   const router = useRouter();
+
+  async function loadClients() {
+    const r = await fetch("/api/clients");
+    const data = await r.json();
+    setClients(data.clients || []);
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -30,12 +41,49 @@ export default function ClientsPage() {
         return;
       }
       setAuthed(true);
-      fetch("/api/clients")
-        .then((r) => r.json())
-        .then((data) => setClients(data.clients || []))
-        .finally(() => setLoading(false));
+      loadClients().finally(() => setLoading(false));
     });
   }, [supabase, router]);
+
+  async function submitNew(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, address: newAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || t("saveFailed"));
+        return;
+      }
+      setNewName("");
+      setNewAddress("");
+      setAdding(false);
+      if (data.client?.id) {
+        router.push(`/clients/${data.client.id}`);
+      } else {
+        await loadClients();
+      }
+    } catch {
+      setError(t("saveFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function formatDate(iso: string | null) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
 
   if (!authed) {
     return (
@@ -43,14 +91,6 @@ export default function ClientsPage() {
         <div className="animate-pulse text-muted-foreground">...</div>
       </div>
     );
-  }
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
   }
 
   return (
@@ -77,7 +117,74 @@ export default function ClientsPage() {
         </aside>
 
         <main className="flex-1 p-4 pb-20 md:p-6">
-          <h2 className="mb-6 text-2xl font-bold">{t("myClients")}</h2>
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">{t("myClients")}</h2>
+            {!adding && (
+              <button
+                onClick={() => setAdding(true)}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+              >
+                + {t("addClient")}
+              </button>
+            )}
+          </div>
+
+          {adding && (
+            <form
+              onSubmit={submitNew}
+              className="mb-6 space-y-3 rounded-lg border border-border bg-background p-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {t("clientNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder={t("clientNamePlaceholder")}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {t("addressLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                  placeholder={t("addressPlaceholder")}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                  autoComplete="off"
+                />
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={!newName.trim() || submitting}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light disabled:opacity-50"
+                >
+                  {submitting ? t("saving") : t("save")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdding(false);
+                    setNewName("");
+                    setNewAddress("");
+                    setError("");
+                  }}
+                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium hover:bg-border"
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+            </form>
+          )}
 
           {loading ? (
             <div className="text-muted-foreground">{t("loading")}</div>
