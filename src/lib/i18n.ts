@@ -93,6 +93,8 @@ const translations = {
     dismiss: "zavřít",
     transcriptNotFound: "Přepis nenalezen.",
     speaker: "Mluvčí",
+    swapSpeakers: "Prohodit mluvčí",
+    customName: "Vlastní jméno…",
     registerWithPasskey: "Registrovat pomocí passkey",
     emailPlaceholder: "vas@email.cz",
     // Dashboard
@@ -229,6 +231,8 @@ const translations = {
     dismiss: "dismiss",
     transcriptNotFound: "Transcript not found.",
     speaker: "Speaker",
+    swapSpeakers: "Swap speakers",
+    customName: "Custom name…",
     registerWithPasskey: "Register with passkey",
     emailPlaceholder: "you@example.com",
     // Dashboard

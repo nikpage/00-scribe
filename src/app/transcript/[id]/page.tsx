@@ -140,6 +140,7 @@ export default function TranscriptPage() {
               ...(recording.label && { "1": recording.label }),
               ...recording.speakers,
             }}
+            suggestions={[workerName, recording.label].filter(Boolean)}
             onSaveSpeakers={handleSaveSpeakers}
           />
         </main>
