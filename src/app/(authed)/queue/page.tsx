@@ -1,36 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useRecordings } from "@/hooks/use-recordings";
 import { useLang } from "@/hooks/use-lang";
+import { useAppUser } from "@/components/app-shell";
 import { QueueTable } from "@/components/queue-table";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { getRecordingBlob, deleteRecordingBlob } from "@/lib/audio-store";
 import { encodeWav } from "@/lib/encode-wav";
-import { BottomNav } from "@/components/bottom-nav";
 
 export default function QueuePage() {
   const { t } = useLang();
-  const [userId, setUserId] = useState<string>();
-  const [authed, setAuthed] = useState(false);
+  const user = useAppUser();
   const [pageError, setPageError] = useState("");
-  const supabase = createClient();
-  const router = useRouter();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace("/auth/login");
-      } else {
-        setUserId(user.id);
-        setAuthed(true);
-      }
-    });
-  }, [supabase, router]);
-
-  // Show errors passed from record page
   useEffect(() => {
     const err = sessionStorage.getItem("scribe-error");
     if (err) {
@@ -39,7 +22,7 @@ export default function QueuePage() {
     }
   }, []);
 
-  const { recordings, loading, refetch } = useRecordings(userId);
+  const { recordings, loading, refetch } = useRecordings(user.id);
   const [retranscribingId, setRetranscribingId] = useState<string | null>(null);
 
   async function updateStatus(recordingId: string, status: string, error?: string) {
@@ -63,7 +46,6 @@ export default function QueuePage() {
     if (!recording) return;
 
     try {
-      // 1. Convert to WAV (Speechmatics doesn't support WebM) and upload
       const wavBlob = await encodeWav(blob);
       const wavFilename = recording.filename.replace(/\.[^.]+$/, ".wav");
       const formData = new FormData();
@@ -83,7 +65,6 @@ export default function QueuePage() {
 
       await uploadRes.json();
 
-      // 2. Submit for transcription
       const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +76,6 @@ export default function QueuePage() {
         throw new Error(errData.error || t("transcriptionFailed"));
       }
 
-      // 3. Audio is uploaded — remove from IndexedDB
       await deleteRecordingBlob(recordingId);
       refetch();
     } catch (err) {
@@ -160,17 +140,8 @@ export default function QueuePage() {
     }
   }
 
-  if (!authed) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
+    <>
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold">{t("recordings")}</h1>
@@ -228,8 +199,6 @@ export default function QueuePage() {
           </>
         )}
       </main>
-
-      <BottomNav active="queue" />
-    </div>
+    </>
   );
 }

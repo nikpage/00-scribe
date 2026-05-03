@@ -108,6 +108,7 @@ const translations = {
     allVisits: "Všechny návštěvy",
     addClient: "Přidat klienta",
     edit: "Upravit",
+    logout: "Odhlásit",
     registerWithPasskey: "Registrovat pomocí passkey",
     emailPlaceholder: "vas@email.cz",
     // Dashboard
@@ -259,6 +260,7 @@ const translations = {
     allVisits: "All visits",
     addClient: "Add client",
     edit: "Edit",
+    logout: "Log out",
     registerWithPasskey: "Register with passkey",
     emailPlaceholder: "you@example.com",
     // Dashboard

@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { generateFilename } from "@/lib/filename";
 import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
-import { LangToggle } from "@/components/lang-toggle";
-import { BottomNav } from "@/components/bottom-nav";
 
 type RecordingState = "idle" | "recording" | "saving";
 
@@ -23,25 +20,12 @@ export default function RecordPage() {
   const [elapsed, setElapsed] = useState(0);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { lang, switchLang, t } = useLang();
+  const { lang, t } = useLang();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const supabase = createClient();
   const router = useRouter();
-
-  // Auth gate
-  const [authed, setAuthed] = useState(false);
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace("/auth/login");
-      } else {
-        setAuthed(true);
-      }
-    });
-  }, [supabase, router]);
 
   // Prefill name + address when arriving from a client page's "New visit".
   useEffect(() => {
@@ -302,18 +286,9 @@ export default function RecordPage() {
     }
   }
 
-  if (!authed) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen p-4 pt-8 pb-20">
+    <div className="p-4 pt-8">
       <div className="w-full max-w-sm mx-auto space-y-6">
-        <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
         <h1 className="text-2xl font-bold text-center">{t("newRecording")}</h1>
 
         {state === "idle" && (
@@ -452,8 +427,6 @@ export default function RecordPage() {
         )}
 
       </div>
-
-      <BottomNav active="record" />
     </div>
   );
 }
