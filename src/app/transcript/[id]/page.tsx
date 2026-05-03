@@ -21,6 +21,7 @@ export default function TranscriptPage() {
   const params = useParams();
   const id = params.id as string;
   const [recording, setRecording] = useState<Recording | null>(null);
+  const [workerName, setWorkerName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -33,6 +34,19 @@ export default function TranscriptPage() {
         .single();
 
       if (data) setRecording(data);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", user.id)
+          .single();
+        if (profile?.name) setWorkerName(profile.name);
+      }
+
       setLoading(false);
     }
     load();
@@ -121,7 +135,11 @@ export default function TranscriptPage() {
 
           <TranscriptViewer
             utterances={recording.transcript.utterances}
-            speakers={recording.speakers}
+            speakers={{
+              ...(workerName && { "0": workerName }),
+              ...(recording.label && { "1": recording.label }),
+              ...recording.speakers,
+            }}
             onSaveSpeakers={handleSaveSpeakers}
           />
         </main>
