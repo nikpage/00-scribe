@@ -2,7 +2,7 @@
 
 import { useLang } from "@/hooks/use-lang";
 
-type NavItem = "queue" | "record" | "transcripts";
+type NavItem = "queue" | "record" | "transcripts" | "clients";
 
 export function BottomNav({ active }: { active: NavItem }) {
   const { t } = useLang();
@@ -27,6 +27,15 @@ export function BottomNav({ active }: { active: NavItem }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           <span className="text-xs">{t("record")}</span>
+        </a>
+        <a
+          href="/clients"
+          className={`flex flex-col items-center p-2 ${active === "clients" ? "text-primary" : "text-muted-foreground"}`}
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 100-8 4 4 0 000 8zm6 0a3 3 0 100-6 3 3 0 000 6z" />
+          </svg>
+          <span className="text-xs">{t("clients")}</span>
         </a>
         <a
           href="/transcripts"

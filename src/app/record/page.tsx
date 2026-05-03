@@ -43,6 +43,20 @@ export default function RecordPage() {
     });
   }, [supabase, router]);
 
+  // Prefill name + address when arriving from a client page's "New visit".
+  useEffect(() => {
+    const raw = sessionStorage.getItem("scribe-prefill");
+    if (!raw) return;
+    sessionStorage.removeItem("scribe-prefill");
+    try {
+      const { label: l, address: a } = JSON.parse(raw);
+      if (typeof l === "string") setLabel(l);
+      if (typeof a === "string") setAddress(a);
+    } catch {
+      // Ignore malformed prefill payload — not worth surfacing.
+    }
+  }, []);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
