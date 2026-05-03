@@ -1,6 +1,20 @@
 -- Migration: Promote client name from a free-text label to a real entity.
 -- Run this in Supabase SQL Editor after migration-002-dashboards.sql.
 
+-- is_manager() is normally defined in rls.sql, but we redefine it here so this
+-- migration runs cleanly even on databases where rls.sql wasn't applied yet.
+create or replace function public.is_manager()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select coalesce(
+    (select is_manager from public.profiles where id = auth.uid()),
+    false
+  );
+$$;
+
 -- Normalize client names for matching: lowercase, strip commas, sort tokens.
 -- Diacritics are preserved (Czech names rely on them).
 create or replace function public.normalize_client_name(input text)
