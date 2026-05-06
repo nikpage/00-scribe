@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { generateFilename } from "@/lib/filename";
 import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
+import { useKeepAliveWhile } from "@/hooks/use-idle";
 
 type RecordingState = "idle" | "recording" | "saving";
 
@@ -26,6 +27,9 @@ export default function RecordPage() {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
+
+  // Keep the idle lock at bay while a recording or upload is in flight.
+  useKeepAliveWhile(state === "recording" || state === "saving" || uploadingFile);
 
   // Prefill name + address when arriving from a client page's "New visit".
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/audit";
 
 // GET /api/manager/needs-review
 // Returns recordings flagged for manager triage. A recording surfaces here if:
@@ -83,6 +84,13 @@ export async function GET() {
       reasons,
     });
   }
+
+  await logAudit({
+    actorId: user.id,
+    action: "view_needs_review",
+    targetType: "system",
+    metadata: { count: flagged.length },
+  });
 
   return NextResponse.json({ recordings: flagged });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/audit";
 
 // GET /api/clients/[id]
 // Returns a client and that client's recordings.
@@ -59,6 +60,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!hasAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await logAudit({
+    actorId: user.id,
+    action: "view_client",
+    targetType: "client",
+    targetId: client.id,
+    targetLabel: client.name,
+    metadata: { scope: isManager ? "org" : "self" },
+  });
 
   return NextResponse.json({
     client,
@@ -128,6 +138,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
+
+  await logAudit({
+    actorId: user.id,
+    action: "edit_client",
+    targetType: "client",
+    targetId: updated.id,
+    targetLabel: updated.name,
+    metadata: { changed: Object.keys(updates) },
+  });
 
   return NextResponse.json({ client: updated });
 }

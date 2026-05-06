@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeClientName } from "@/lib/clients";
+import { logAudit } from "@/lib/audit";
 
 // GET /api/clients
 // Workers: clients they've recorded with or created.
@@ -150,6 +151,14 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await logAudit({
+    actorId: user.id,
+    action: "create_client",
+    targetType: "client",
+    targetId: created.id,
+    targetLabel: created.name,
+  });
 
   return NextResponse.json({ client: created, existed: false });
 }
