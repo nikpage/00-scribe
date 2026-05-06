@@ -15,10 +15,12 @@ interface ClientRecord {
 
 interface RecordingSummary {
   id: string;
+  user_id: string;
   label: string;
   recorded_at: string;
   duration_seconds: number | null;
   status: string;
+  profiles?: { name: string };
   analysis: {
     summary?: string;
     keyTopics?: string[];
@@ -268,6 +270,9 @@ export default function ClientDetailPage() {
                       : t(r.status as never) || r.status}
                   </div>
                 </div>
+                {user.isManager && r.profiles?.name && (
+                  <div className="mt-1 text-xs text-muted-foreground">{r.profiles.name}</div>
+                )}
                 {r.analysis?.summary && (
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                     {r.analysis.summary}

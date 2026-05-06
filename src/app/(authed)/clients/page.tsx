@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
+import { useAppUser } from "@/components/app-shell";
 
 interface ClientSummary {
   id: string;
@@ -11,10 +12,12 @@ interface ClientSummary {
   visits: number;
   last_visit: string | null;
   action_count: number;
+  worker_count: number;
 }
 
 export default function ClientsPage() {
   const { lang, t } = useLang();
+  const user = useAppUser();
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -77,7 +80,7 @@ export default function ClientsPage() {
   return (
     <main className="p-4 md:p-6">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold">{t("myClients")}</h2>
+        <h2 className="text-2xl font-bold">{user.isManager ? t("allClients") : t("myClients")}</h2>
         {!adding && (
           <button
             onClick={() => setAdding(true)}
@@ -170,6 +173,9 @@ export default function ClientsPage() {
                 </div>
                 <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
                   <span>{c.visits} {c.visits === 1 ? t("visitOne") : t("visitMany")}</span>
+                  {user.isManager && c.worker_count > 1 && (
+                    <span>· {c.worker_count} {t("workers").toLowerCase()}</span>
+                  )}
                   {c.action_count > 0 && (
                     <span>{c.action_count} {t("actionItems").toLowerCase()}</span>
                   )}

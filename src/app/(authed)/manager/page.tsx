@@ -72,7 +72,15 @@ export default function ManagerPage() {
 
   return (
     <main className="p-4 md:p-6">
-      <h2 className="mb-6 text-2xl font-bold">{t("manager")}</h2>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold">{t("manager")}</h2>
+        <a
+          href="/manager/needs-review"
+          className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+        >
+          {t("needsReview")} →
+        </a>
+      </div>
       <ManagerDashboard recordings={recordings} />
     </main>
   );

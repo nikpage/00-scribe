@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // GET /api/clients/[id]
-// Returns a client and the worker's own recordings with that client.
-// Access: workers who created the client or have recorded with them.
+// Returns a client and that client's recordings.
+// Workers: only their own recordings.
+// Managers: every recording, with the worker's name attached.
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -17,6 +18,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const admin = createAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("is_manager")
+    .eq("id", user.id)
+    .single();
+  const isManager = !!profile?.is_manager;
+
   const { data: client, error: clientErr } = await admin
     .from("clients")
     .select("id, name, address, created_by, created_at")
@@ -27,27 +36,38 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: recordings, error: recErr } = await admin
+  const recQuery = admin
     .from("recordings")
-    .select("id, label, recorded_at, duration_seconds, status, analysis")
+    .select(
+      isManager
+        ? "id, user_id, label, recorded_at, duration_seconds, status, analysis, profiles(name)"
+        : "id, user_id, label, recorded_at, duration_seconds, status, analysis"
+    )
     .eq("client_id", id)
-    .eq("user_id", user.id)
     .order("recorded_at", { ascending: false });
+
+  const { data: recordings, error: recErr } = isManager
+    ? await recQuery
+    : await recQuery.eq("user_id", user.id);
 
   if (recErr) {
     return NextResponse.json({ error: recErr.message }, { status: 500 });
   }
 
-  const hasAccess = client.created_by === user.id || (recordings && recordings.length > 0);
+  const hasAccess =
+    isManager || client.created_by === user.id || (recordings && recordings.length > 0);
   if (!hasAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({ client, recordings: recordings || [] });
+  return NextResponse.json({
+    client,
+    recordings: recordings || [],
+    scope: isManager ? "org" : "self",
+  });
 }
 
-// PATCH /api/clients/[id]
-// Update name and/or address. Workers can only edit clients they created.
+// PATCH /api/clients/[id] (unchanged — see git history)
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -87,7 +107,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (fetchErr || !existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (existing.created_by !== user.id) {
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("is_manager")
+    .eq("id", user.id)
+    .single();
+  const canEdit = profile?.is_manager || existing.created_by === user.id;
+  if (!canEdit) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -99,7 +126,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .single();
 
   if (error) {
-    // Most likely a unique-index conflict (same normalized name + address).
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
 

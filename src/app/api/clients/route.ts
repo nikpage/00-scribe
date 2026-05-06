@@ -4,9 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeClientName } from "@/lib/clients";
 
 // GET /api/clients
-// Returns every client the authenticated worker has either recorded with or
-// created themselves, plus per-client aggregates from their own recordings:
-// visit count, last visit date, total Gemini-extracted action items.
+// Workers: clients they've recorded with or created.
+// Managers: every client across the org. Each client carries per-client
+// aggregates from every worker's recordings combined: visit count, last
+// visit, total Gemini-extracted action items, and the distinct worker count.
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -19,49 +20,66 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  // Clients this worker created (may have zero recordings).
-  const { data: ownClients, error: ownErr } = await admin
-    .from("clients")
-    .select("id, name, address")
-    .eq("created_by", user.id);
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("is_manager")
+    .eq("id", user.id)
+    .single();
+  const isManager = !!profile?.is_manager;
 
-  if (ownErr) {
-    return NextResponse.json({ error: ownErr.message }, { status: 500 });
+  type ClientInfo = { id: string; name: string; address: string | null };
+  type ClientAgg = ClientInfo & {
+    visits: number;
+    last_visit: string | null;
+    action_count: number;
+    worker_count: number;
+  };
+
+  const byClient = new Map<string, ClientAgg>();
+
+  // Seed: clients the user owns (workers) or every client (managers).
+  const seedQuery = admin.from("clients").select("id, name, address");
+  const { data: seedClients, error: seedErr } = isManager
+    ? await seedQuery
+    : await seedQuery.eq("created_by", user.id);
+
+  if (seedErr) {
+    return NextResponse.json({ error: seedErr.message }, { status: 500 });
   }
 
-  // Recordings by this worker, joined to client info, for aggregates.
-  const { data: recs, error: recErr } = await admin
+  for (const c of (seedClients || []) as ClientInfo[]) {
+    byClient.set(c.id, { ...c, visits: 0, last_visit: null, action_count: 0, worker_count: 0 });
+  }
+
+  // Recordings to aggregate over. Workers see only their own; managers see all.
+  const recQuery = admin
     .from("recordings")
-    .select("recorded_at, analysis, clients!inner(id, name, address)")
-    .eq("user_id", user.id)
+    .select("user_id, recorded_at, analysis, clients!inner(id, name, address)")
     .not("client_id", "is", null);
+  const { data: recs, error: recErr } = isManager
+    ? await recQuery
+    : await recQuery.eq("user_id", user.id);
 
   if (recErr) {
     return NextResponse.json({ error: recErr.message }, { status: 500 });
   }
 
-  type ClientInfo = { id: string; name: string; address: string | null };
   type RecRow = {
+    user_id: string;
     recorded_at: string;
     analysis: { actionItems?: string[] } | null;
     clients: ClientInfo;
   };
-  type ClientAgg = ClientInfo & {
-    visits: number;
-    last_visit: string | null;
-    action_count: number;
-  };
 
-  const byClient = new Map<string, ClientAgg>();
-  for (const c of (ownClients || []) as ClientInfo[]) {
-    byClient.set(c.id, { ...c, visits: 0, last_visit: null, action_count: 0 });
-  }
+  // Track distinct workers per client without storing every user_id.
+  const workersPerClient = new Map<string, Set<string>>();
+
   for (const r of (recs || []) as unknown as RecRow[]) {
     const c = r.clients;
     if (!c) continue;
     let entry = byClient.get(c.id);
     if (!entry) {
-      entry = { ...c, visits: 0, last_visit: null, action_count: 0 };
+      entry = { ...c, visits: 0, last_visit: null, action_count: 0, worker_count: 0 };
       byClient.set(c.id, entry);
     }
     entry.visits += 1;
@@ -69,21 +87,30 @@ export async function GET() {
       entry.last_visit = r.recorded_at;
     }
     if (r.analysis?.actionItems) entry.action_count += r.analysis.actionItems.length;
+
+    let workers = workersPerClient.get(c.id);
+    if (!workers) {
+      workers = new Set();
+      workersPerClient.set(c.id, workers);
+    }
+    workers.add(r.user_id);
   }
 
-  // Sort by last_visit desc; clients with no visits go last by name.
+  for (const [id, workers] of workersPerClient) {
+    const entry = byClient.get(id);
+    if (entry) entry.worker_count = workers.size;
+  }
+
   const clients = Array.from(byClient.values()).sort((a, b) => {
     if (a.last_visit && b.last_visit) return a.last_visit < b.last_visit ? 1 : -1;
     if (a.last_visit) return -1;
     if (b.last_visit) return 1;
     return a.name.localeCompare(b.name);
   });
-  return NextResponse.json({ clients });
+  return NextResponse.json({ clients, scope: isManager ? "org" : "self" });
 }
 
-// POST /api/clients
-// Creates a client (name + optional address). If a client with the same
-// normalized name and address already exists, returns that one instead.
+// POST /api/clients (unchanged behavior — see git history for context)
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
