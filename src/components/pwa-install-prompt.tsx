@@ -89,12 +89,17 @@ export function PwaInstallPrompt() {
 
   async function handleInstall() {
     if (!deferred) return;
-    await deferred.prompt();
-    const choice = await deferred.userChoice;
-    if (choice.outcome === "accepted") {
-      setHidden(true);
+    try {
+      await deferred.prompt();
+      const choice = await deferred.userChoice;
+      if (choice.outcome === "accepted") {
+        localStorage.setItem(DISMISS_KEY, "1");
+        setHidden(true);
+      }
+    } finally {
+      setDeferred(null);
+      (window as Window & { __deferredInstall?: BeforeInstallPromptEvent }).__deferredInstall = undefined;
     }
-    setDeferred(null);
   }
 
   function handleDismiss() {
