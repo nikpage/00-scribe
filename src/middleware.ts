@@ -18,6 +18,15 @@ export async function middleware(request: NextRequest) {
     return passthrough;
   }
 
+  // PWA assets must be served unauthenticated so the browser can register
+  // the service worker and read the manifest before the user logs in.
+  const p = request.nextUrl.pathname;
+  if (p === "/sw.js" || p === "/sw.js.map" || p === "/manifest.json" || p.startsWith("/workbox-")) {
+    const passthrough = NextResponse.next();
+    for (const [k, v] of Object.entries(securityHeaders)) passthrough.headers.set(k, v);
+    return passthrough;
+  }
+
   const response = await updateSession(request);
   for (const [k, v] of Object.entries(securityHeaders)) response.headers.set(k, v);
   return response;

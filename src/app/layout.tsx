@@ -42,7 +42,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstall=e;window.dispatchEvent(new Event('pwa-install-ready'));});`,
+            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstall=e;window.dispatchEvent(new Event('pwa-install-ready'));});if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});});}`,
           }}
         />
       </head>
