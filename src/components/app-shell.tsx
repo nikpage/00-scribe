@@ -7,6 +7,7 @@ import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 import { IdleProvider } from "@/hooks/use-idle";
 import { ReauthModal } from "@/components/reauth-modal";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import type { TranslationKey } from "@/lib/i18n";
 
 export type AppUser = {
@@ -164,6 +165,7 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
             ))}
           </div>
         </nav>
+        <PwaInstallPrompt />
       </div>
      </IdleProvider>
     </UserContext.Provider>
