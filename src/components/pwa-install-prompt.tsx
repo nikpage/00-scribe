@@ -33,12 +33,25 @@ export function PwaInstallPrompt() {
     if (isStandalone()) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
 
+    const w = window as Window & { __deferredInstall?: BeforeInstallPromptEvent };
+
+    const pickUp = () => {
+      if (w.__deferredInstall) {
+        setDeferred(w.__deferredInstall);
+        setHidden(false);
+      }
+    };
+
+    pickUp();
+
     const onPrompt = (e: Event) => {
       e.preventDefault();
+      w.__deferredInstall = e as BeforeInstallPromptEvent;
       setDeferred(e as BeforeInstallPromptEvent);
       setHidden(false);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("pwa-install-ready", pickUp);
 
     if (isIOS()) {
       setShowIOS(true);
@@ -49,11 +62,13 @@ export function PwaInstallPrompt() {
       setHidden(true);
       setDeferred(null);
       setShowIOS(false);
+      w.__deferredInstall = undefined;
     };
     window.addEventListener("appinstalled", onInstalled);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("pwa-install-ready", pickUp);
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
