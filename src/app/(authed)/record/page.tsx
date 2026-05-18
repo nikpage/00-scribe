@@ -26,6 +26,7 @@ export default function RecordPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingChunkSavesRef = useRef<Promise<void>[]>([]);
   const router = useRouter();
 
   // Keep the idle lock at bay while a recording or upload is in flight.
@@ -99,6 +100,7 @@ export default function RecordPage() {
       streamRef.current = stream;
 
       await clearChunks();
+      pendingChunkSavesRef.current = [];
 
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
         ? "audio/ogg;codecs=opus"
@@ -111,9 +113,9 @@ export default function RecordPage() {
       });
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = async (e) => {
+      mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          await saveChunk(e.data);
+          pendingChunkSavesRef.current.push(saveChunk(e.data));
         }
       };
 
@@ -173,6 +175,12 @@ export default function RecordPage() {
 
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+
+    // The final ondataavailable fires just before onstop, but its saveChunk
+    // is async — wait for every pending IndexedDB write before reading back,
+    // otherwise short recordings lose their only chunk.
+    await Promise.all(pendingChunkSavesRef.current);
+    pendingChunkSavesRef.current = [];
 
     const chunks = await getAllChunks();
     if (chunks.length === 0) {
