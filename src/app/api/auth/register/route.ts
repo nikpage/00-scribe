@@ -9,10 +9,11 @@ import { createClient as createSSRClient } from "@/lib/supabase/server";
 const rpName = process.env.WEBAUTHN_RP_NAME || "Scribe";
 
 function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url) throw new Error("Server misconfigured: NEXT_PUBLIC_SUPABASE_URL is not set");
+  if (!key) throw new Error("Server misconfigured: SUPABASE_SERVICE_ROLE_KEY is not set");
+  return createClient(url, key);
 }
 
 function getWebAuthnParams(request: Request) {
