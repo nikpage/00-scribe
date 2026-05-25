@@ -174,12 +174,11 @@ const translations = {
     uploadingFile: "Nahrávání souboru...",
     fileSelected: "Vybraný soubor",
     // Post-session notes (worker dictates a summary after the interview)
-    postSessionNotesTitle: "Poznámky po setkání",
+    postSessionNotesTitle: "Poznámky po schůzce",
     notesForClient: "Poznámky pro klienta",
     startNotesRecording: "Nahrát poznámky",
     recordPostSessionNotes: "Nahrát poznámky",
     postSessionNotesBadge: "Poznámky",
-    interviewBadge: "Rozhovor",
   },
   en: {
     appName: "Scribe",
@@ -351,7 +350,6 @@ const translations = {
     startNotesRecording: "Record notes",
     recordPostSessionNotes: "Record notes",
     postSessionNotesBadge: "Notes",
-    interviewBadge: "Interview",
   },
 } as const;
 

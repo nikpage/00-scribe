@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { Recording } from "@/hooks/use-recordings";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/hooks/use-lang";
@@ -151,13 +150,13 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
                   {t("viewTranscript")}
                 </a>
                 {!(notesByParent.get(rec.id)?.length) && (
-                  <Link
+                  <a
                     href={`/record?kind=worker_notes&parent=${rec.id}`}
                     className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {t("recordPostSessionNotes")}
-                  </Link>
+                  </a>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); onRetranscribe(rec.id); }}
