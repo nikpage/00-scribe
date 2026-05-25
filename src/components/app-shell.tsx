@@ -149,6 +149,9 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
               <h1 className="font-bold">{t("appName")}</h1>
               <div className="flex items-center gap-3">
                 <LangToggle lang={lang} onSwitch={switchLang} />
+                <a href="/settings/eway" className="text-sm text-muted-foreground">
+                  {t("settings")}
+                </a>
                 <button onClick={logout} className="text-sm text-muted-foreground">
                   {t("logout")}
                 </button>
