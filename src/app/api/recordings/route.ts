@@ -41,15 +41,56 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { id, label, address, filename, recorded_at, duration_seconds, file_size_bytes, speakers_expected, language } = body;
+  const {
+    id,
+    label,
+    address,
+    filename,
+    recorded_at,
+    duration_seconds,
+    file_size_bytes,
+    speakers_expected,
+    language,
+    kind,
+    parent_recording_id,
+  } = body;
 
   const admin = createAdminClient();
 
-  // Resolve or create the client by (normalized name, address).
+  const recordingKind: "interview" | "worker_notes" =
+    kind === "worker_notes" ? "worker_notes" : "interview";
+
+  let parentId: string | null = null;
+  let resolvedLabel = label;
+  let resolvedAddress: string | null = address?.trim() || null;
   let clientId: string | null = null;
-  if (label && label.trim()) {
+
+  if (recordingKind === "worker_notes") {
+    if (!parent_recording_id) {
+      return NextResponse.json(
+        { error: "parent_recording_id is required for worker_notes" },
+        { status: 400 }
+      );
+    }
+    const { data: parent, error: parentErr } = await admin
+      .from("recordings")
+      .select("id, user_id, label, address, client_id")
+      .eq("id", parent_recording_id)
+      .single();
+    if (parentErr || !parent) {
+      return NextResponse.json({ error: "Parent recording not found" }, { status: 404 });
+    }
+    if (parent.user_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    parentId = parent.id;
+    resolvedLabel = label || parent.label;
+    resolvedAddress = parent.address;
+    clientId = parent.client_id;
+  } else if (label && label.trim()) {
+    // Resolve or create the client by (normalized name, address).
     const normalized = normalizeClientName(label);
-    const addr = address?.trim() || null;
+    const addr = resolvedAddress;
     const lookup = admin.from("clients").select("id").eq("normalized", normalized);
     const { data: existing } = await (
       addr ? lookup.ilike("address", addr) : lookup.is("address", null)
@@ -75,16 +116,18 @@ export async function POST(request: Request) {
     .insert({
       id,
       user_id: user.id,
-      label,
-      address: address?.trim() || null,
+      label: resolvedLabel,
+      address: resolvedAddress,
       client_id: clientId,
       filename,
       recorded_at,
       duration_seconds,
       file_size_bytes,
       status: "pending",
-      speakers: { expected: speakers_expected || 2 },
+      speakers: { expected: recordingKind === "worker_notes" ? 1 : speakers_expected || 2 },
       language: language || null,
+      kind: recordingKind,
+      parent_recording_id: parentId,
     })
     .select()
     .single();

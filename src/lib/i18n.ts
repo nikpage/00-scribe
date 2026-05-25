@@ -173,6 +173,13 @@ const translations = {
     selectAudioFile: "Vybrat audio soubor",
     uploadingFile: "Nahrávání souboru...",
     fileSelected: "Vybraný soubor",
+    // Post-session notes (worker dictates a summary after the interview)
+    postSessionNotesTitle: "Poznámky po setkání",
+    notesForClient: "Poznámky pro klienta",
+    startNotesRecording: "Nahrát poznámky",
+    recordPostSessionNotes: "Nahrát poznámky",
+    postSessionNotesBadge: "Poznámky",
+    interviewBadge: "Rozhovor",
   },
   en: {
     appName: "Scribe",
@@ -339,6 +346,12 @@ const translations = {
     selectAudioFile: "Select audio file",
     uploadingFile: "Uploading file...",
     fileSelected: "Selected file",
+    postSessionNotesTitle: "Post-session notes",
+    notesForClient: "Notes for client",
+    startNotesRecording: "Record notes",
+    recordPostSessionNotes: "Record notes",
+    postSessionNotesBadge: "Notes",
+    interviewBadge: "Interview",
   },
 } as const;
 

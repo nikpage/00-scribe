@@ -7,6 +7,18 @@ import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/a
 import { useLang } from "@/hooks/use-lang";
 import { useKeepAliveWhile } from "@/hooks/use-idle";
 
+function readRecordParams(): {
+  kind: "interview" | "worker_notes";
+  parentRecordingId: string | null;
+} {
+  if (typeof window === "undefined") {
+    return { kind: "interview", parentRecordingId: null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const kind = params.get("kind") === "worker_notes" ? "worker_notes" : "interview";
+  return { kind, parentRecordingId: params.get("parent") };
+}
+
 type RecordingState = "idle" | "recording" | "saving";
 
 type ClientSuggestion = { id: string; name: string; address: string | null };
@@ -28,6 +40,34 @@ export default function RecordPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingChunkSavesRef = useRef<Promise<void>[]>([]);
   const router = useRouter();
+  const [{ kind, parentRecordingId }, setRecordParams] = useState<{
+    kind: "interview" | "worker_notes";
+    parentRecordingId: string | null;
+  }>({ kind: "interview", parentRecordingId: null });
+  const isNotes = kind === "worker_notes";
+
+  useEffect(() => {
+    setRecordParams(readRecordParams());
+  }, []);
+
+  // For a notes recording, the client is fixed by the parent interview —
+  // we resolve the parent's label once so the UI can show "Notes for X".
+  useEffect(() => {
+    if (!isNotes || !parentRecordingId) return;
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/recordings");
+      if (!res.ok || cancelled) return;
+      const { recordings } = await res.json();
+      const parent = (recordings as { id: string; label: string }[]).find(
+        (r) => r.id === parentRecordingId
+      );
+      if (parent && !cancelled) setLabel(parent.label);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isNotes, parentRecordingId]);
 
   // Keep the idle lock at bay while a recording or upload is in flight.
   useKeepAliveWhile(state === "recording" || state === "saving" || uploadingFile);
@@ -210,8 +250,10 @@ export default function RecordPage() {
           recorded_at: new Date().toISOString(),
           duration_seconds: elapsed,
           file_size_bytes: blob.size,
-          speakers_expected: speakerCount,
+          speakers_expected: isNotes ? 1 : speakerCount,
           language: lang,
+          kind,
+          parent_recording_id: parentRecordingId,
         }),
       });
 
@@ -254,7 +296,9 @@ export default function RecordPage() {
           recorded_at: new Date().toISOString(),
           duration_seconds: null,
           file_size_bytes: file.size,
-          speakers_expected: speakerCount,
+          speakers_expected: isNotes ? 1 : speakerCount,
+          kind,
+          parent_recording_id: parentRecordingId,
         }),
       });
 
@@ -301,84 +345,95 @@ export default function RecordPage() {
   return (
     <div className="p-4 pt-8">
       <div className="w-full max-w-sm mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-center">{t("newRecording")}</h1>
+        <h1 className="text-2xl font-bold text-center">
+          {isNotes ? t("postSessionNotesTitle") : t("newRecording")}
+        </h1>
 
         {state === "idle" && (
           <div className="space-y-4">
-            <div className="relative">
-              <label className="block text-sm font-medium mb-1">
-                {t("clientNameLabel")}
-              </label>
-              <input
-                type="text"
-                placeholder={t("clientNamePlaceholder")}
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-                autoComplete="off"
-              />
-              {suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-border bg-background shadow-lg">
-                  {suggestions.map((c) => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        onClick={() => pickSuggestion(c)}
-                        className="block w-full px-4 py-3 text-left text-sm hover:bg-muted"
-                      >
-                        <div className="font-medium">{c.name}</div>
-                        {c.address && (
-                          <div className="text-xs text-muted-foreground">{c.address}</div>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                {t("addressLabel")}
-              </label>
-              <input
-                type="text"
-                placeholder={t("addressPlaceholder")}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-                autoComplete="off"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                {t("speakerCount")}
-              </label>
-              <div className="flex gap-2">
-                {[2, 3].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setSpeakerCount(n)}
-                    className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium ${
-                      speakerCount === n
-                        ? "border-primary bg-primary text-white"
-                        : "border-border bg-background text-foreground"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
+            {isNotes ? (
+              <div className="rounded-lg border border-border bg-muted p-3 text-sm">
+                <div className="text-xs text-muted-foreground">{t("notesForClient")}</div>
+                <div className="font-medium">{label || "…"}</div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <label className="block text-sm font-medium mb-1">
+                    {t("clientNameLabel")}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t("clientNamePlaceholder")}
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                    autoComplete="off"
+                  />
+                  {suggestions.length > 0 && (
+                    <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-border bg-background shadow-lg">
+                      {suggestions.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => pickSuggestion(c)}
+                            className="block w-full px-4 py-3 text-left text-sm hover:bg-muted"
+                          >
+                            <div className="font-medium">{c.name}</div>
+                            {c.address && (
+                              <div className="text-xs text-muted-foreground">{c.address}</div>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {t("addressLabel")}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t("addressPlaceholder")}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {t("speakerCount")}
+                  </label>
+                  <div className="flex gap-2">
+                    {[2, 3].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setSpeakerCount(n)}
+                        className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium ${
+                          speakerCount === n
+                            ? "border-primary bg-primary text-white"
+                            : "border-border bg-background text-foreground"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             <button
               onClick={startRecording}
               disabled={!label.trim() || uploadingFile}
               className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
             >
-              {t("startRecording")}
+              {isNotes ? t("startNotesRecording") : t("startRecording")}
             </button>
 
             <div className="relative flex items-center gap-3">

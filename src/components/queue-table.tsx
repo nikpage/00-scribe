@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Recording } from "@/hooks/use-recordings";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/hooks/use-lang";
@@ -53,9 +54,19 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
   const { lang, t } = useLang();
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  const notesByParent = new Map<string, Recording[]>();
+  for (const rec of recordings) {
+    if (rec.kind === "worker_notes" && rec.parent_recording_id) {
+      const arr = notesByParent.get(rec.parent_recording_id) ?? [];
+      arr.push(rec);
+      notesByParent.set(rec.parent_recording_id, arr);
+    }
+  }
+  const visible = recordings.filter((r) => r.kind !== "worker_notes");
+
   return (
     <div className="space-y-3">
-      {recordings.map((rec) => (
+      {visible.map((rec) => (
         <div
           key={rec.id}
           className="rounded-lg border border-border bg-background p-4"
@@ -139,6 +150,15 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
                 >
                   {t("viewTranscript")}
                 </a>
+                {!(notesByParent.get(rec.id)?.length) && (
+                  <Link
+                    href={`/record?kind=worker_notes&parent=${rec.id}`}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {t("recordPostSessionNotes")}
+                  </Link>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); onRetranscribe(rec.id); }}
                   disabled={retranscribingId === rec.id}
@@ -160,6 +180,69 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
           {expanded === rec.id && (
             <RecordingAnalysis recording={rec} onAnalysisComplete={onRefetch} />
           )}
+
+          {(notesByParent.get(rec.id) || []).map((note) => (
+            <div
+              key={note.id}
+              className="mt-3 rounded-md border border-border bg-muted/30 p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                      {t("postSessionNotesBadge")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDuration(note.duration_seconds)}
+                    </span>
+                  </div>
+                  {note.error && (
+                    <p className="mt-1 text-sm text-destructive">{note.error}</p>
+                  )}
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[note.status] || statusColors.pending}`}
+                >
+                  {t(note.status as TranslationKey)}
+                </span>
+              </div>
+              <div className="mt-2 flex gap-2">
+                {note.status === "pending" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpload(note.id); }}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"
+                  >
+                    {t("upload")}
+                  </button>
+                )}
+                {note.status === "failed" && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRetry(note.id); }}
+                      className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                    >
+                      {t("retry")}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onArchive(note.id); }}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                    >
+                      {t("dismissError")}
+                    </button>
+                  </>
+                )}
+                {note.status === "done" && (
+                  <a
+                    href={`/transcript/${note.id}`}
+                    className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {t("viewTranscript")}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

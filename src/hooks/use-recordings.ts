@@ -37,6 +37,8 @@ export interface Recording {
   error: string | null;
   created_at: string;
   updated_at: string;
+  kind: "interview" | "worker_notes";
+  parent_recording_id: string | null;
 }
 
 export function useRecordings(userId?: string) {

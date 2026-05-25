@@ -13,6 +13,8 @@ interface FlaggedRecording {
   duration_seconds: number | null;
   status: string;
   error: string | null;
+  kind: "interview" | "worker_notes";
+  parent_recording_id: string | null;
   quality_score: number | null;
   summary: string | null;
   reasons: ("failed" | "low_quality" | "talk_ratio")[];
@@ -85,7 +87,14 @@ export default function NeedsReviewPage() {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium">{r.label}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{r.label}</span>
+                      {r.kind === "worker_notes" && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                          {t("postSessionNotesBadge")}
+                        </span>
+                      )}
+                    </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {r.worker_name} · {new Date(r.recorded_at).toLocaleDateString(lang === "cs" ? "cs-CZ" : "en-US")}
                     </div>

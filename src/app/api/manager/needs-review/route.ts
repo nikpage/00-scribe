@@ -38,6 +38,8 @@ export async function GET() {
     duration_seconds: number | null;
     status: string;
     error: string | null;
+    kind: "interview" | "worker_notes";
+    parent_recording_id: string | null;
     analysis: { qualityScore?: number; summary?: string } | null;
     metrics: {
       speakerMetrics?: Record<string, { talkRatio: number }>;
@@ -48,7 +50,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("recordings")
     .select(
-      "id, user_id, label, recorded_at, duration_seconds, status, error, analysis, metrics, profiles(name)"
+      "id, user_id, label, recorded_at, duration_seconds, status, error, kind, parent_recording_id, analysis, metrics, profiles(name)"
     )
     .eq("archived", false)
     .order("recorded_at", { ascending: false })
@@ -62,12 +64,16 @@ export async function GET() {
   for (const r of (data || []) as unknown as Row[]) {
     const reasons: string[] = [];
     if (r.status === "failed") reasons.push("failed");
-    if (r.analysis && typeof r.analysis.qualityScore === "number" && r.analysis.qualityScore <= 2) {
-      reasons.push("low_quality");
-    }
-    const ratios = Object.values(r.metrics?.speakerMetrics || {}).map((s) => s.talkRatio);
-    if (ratios.some((v) => v > 0.7 || v < 0.3) && ratios.length >= 2) {
-      reasons.push("talk_ratio");
+    // Quality + talk-ratio signals only apply to interviews; notes are a
+    // single-speaker monologue, so those checks would be noise.
+    if (r.kind !== "worker_notes") {
+      if (r.analysis && typeof r.analysis.qualityScore === "number" && r.analysis.qualityScore <= 2) {
+        reasons.push("low_quality");
+      }
+      const ratios = Object.values(r.metrics?.speakerMetrics || {}).map((s) => s.talkRatio);
+      if (ratios.some((v) => v > 0.7 || v < 0.3) && ratios.length >= 2) {
+        reasons.push("talk_ratio");
+      }
     }
     if (reasons.length === 0) continue;
     flagged.push({
@@ -79,6 +85,8 @@ export async function GET() {
       duration_seconds: r.duration_seconds,
       status: r.status,
       error: r.error,
+      kind: r.kind,
+      parent_recording_id: r.parent_recording_id,
       quality_score: r.analysis?.qualityScore ?? null,
       summary: r.analysis?.summary ?? null,
       reasons,
