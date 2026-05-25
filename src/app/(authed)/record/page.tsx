@@ -12,10 +12,12 @@ function readRecordParams(): {
   parentRecordingId: string | null;
 } {
   if (typeof window === "undefined") {
-    return { kind: "interview", parentRecordingId: null };
+    return { kind: "worker_notes", parentRecordingId: null };
   }
   const params = new URLSearchParams(window.location.search);
-  const kind = params.get("kind") === "worker_notes" ? "worker_notes" : "interview";
+  // Notes is the default flow — the in-person meeting isn't recorded.
+  // ?kind=interview switches to the old multi-speaker interview path.
+  const kind = params.get("kind") === "interview" ? "interview" : "worker_notes";
   return { kind, parentRecordingId: params.get("parent") };
 }
 
@@ -43,7 +45,7 @@ export default function RecordPage() {
   const [{ kind, parentRecordingId }, setRecordParams] = useState<{
     kind: "interview" | "worker_notes";
     parentRecordingId: string | null;
-  }>({ kind: "interview", parentRecordingId: null });
+  }>({ kind: "worker_notes", parentRecordingId: null });
   const isNotes = kind === "worker_notes";
 
   useEffect(() => {
@@ -351,7 +353,7 @@ export default function RecordPage() {
 
         {state === "idle" && (
           <div className="space-y-4">
-            {isNotes ? (
+            {isNotes && parentRecordingId ? (
               <div className="rounded-lg border border-border bg-muted p-3 text-sm">
                 <div className="text-xs text-muted-foreground">{t("notesForClient")}</div>
                 <div className="font-medium">{label || "…"}</div>
@@ -404,27 +406,29 @@ export default function RecordPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {t("speakerCount")}
-                  </label>
-                  <div className="flex gap-2">
-                    {[2, 3].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => setSpeakerCount(n)}
-                        className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium ${
-                          speakerCount === n
-                            ? "border-primary bg-primary text-white"
-                            : "border-border bg-background text-foreground"
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
+                {!isNotes && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t("speakerCount")}
+                    </label>
+                    <div className="flex gap-2">
+                      {[2, 3].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setSpeakerCount(n)}
+                          className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium ${
+                            speakerCount === n
+                              ? "border-primary bg-primary text-white"
+                              : "border-border bg-background text-foreground"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
 

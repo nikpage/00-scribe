@@ -61,7 +61,11 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
       notesByParent.set(rec.parent_recording_id, arr);
     }
   }
-  const visible = recordings.filter((r) => r.kind !== "worker_notes");
+  // Standalone notes (no parent interview) render as top-level rows;
+  // notes attached to an interview render nested under their parent.
+  const visible = recordings.filter(
+    (r) => r.kind !== "worker_notes" || !r.parent_recording_id
+  );
 
   return (
     <div className="space-y-3">
@@ -75,7 +79,14 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
             onClick={() => setExpanded(expanded === rec.id ? null : rec.id)}
           >
             <div className="min-w-0 flex-1">
-              <h3 className="truncate font-medium">{rec.label}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="truncate font-medium">{rec.label}</h3>
+                {rec.kind === "worker_notes" && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                    {t("postSessionNotesBadge")}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 {formatDate(rec.recorded_at, lang)}
               </p>
@@ -149,7 +160,7 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
                 >
                   {t("viewTranscript")}
                 </a>
-                {!(notesByParent.get(rec.id)?.length) && (
+                {rec.kind === "interview" && !(notesByParent.get(rec.id)?.length) && (
                   <a
                     href={`/record?kind=worker_notes&parent=${rec.id}`}
                     className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-light"

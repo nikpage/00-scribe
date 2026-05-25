@@ -65,13 +65,7 @@ export async function POST(request: Request) {
   let resolvedAddress: string | null = address?.trim() || null;
   let clientId: string | null = null;
 
-  if (recordingKind === "worker_notes") {
-    if (!parent_recording_id) {
-      return NextResponse.json(
-        { error: "parent_recording_id is required for worker_notes" },
-        { status: 400 }
-      );
-    }
+  if (recordingKind === "worker_notes" && parent_recording_id) {
     const { data: parent, error: parentErr } = await admin
       .from("recordings")
       .select("id, user_id, label, address, client_id")
