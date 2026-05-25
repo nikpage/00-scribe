@@ -125,6 +125,16 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
                 <div className="truncate font-medium">{user.name}</div>
                 <div className="truncate text-xs text-muted-foreground">{user.email}</div>
               </div>
+              <a
+                href="/settings/eway"
+                className={`block rounded-lg px-3 py-2 text-sm ${
+                  isActive("/settings")
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {t("settings")}
+              </a>
               <button
                 onClick={logout}
                 className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"

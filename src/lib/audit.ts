@@ -8,7 +8,10 @@ export type AuditAction =
   | "edit_recording"
   | "view_needs_review"
   | "view_audit_log"
-  | "view_manager_dashboard";
+  | "view_manager_dashboard"
+  | "eway_connect"
+  | "eway_disconnect"
+  | "eway_test";
 
 export type AuditTargetType = "client" | "recording" | "worker" | "system";
 
