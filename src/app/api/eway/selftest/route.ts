@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { ewayLogin, ewayCall } from "@/lib/eway/client";
+import { createHash } from "node:crypto";
+import { ewayCall } from "@/lib/eway/client";
 
 // GET /api/eway/selftest?user=<eway-username>&pass=<eway-password>
 //
@@ -16,11 +17,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Add ?user=...&pass=... to the URL" }, { status: 400 });
   }
 
-  const login = await ewayLogin(user, pass);
-  if (!login.ok || !login.sessionId) {
-    return NextResponse.json({ step: "login", login }, { status: 502 });
+  // Raw login so we can read the exact session field name from eWay's reply.
+  const serviceUrl = (process.env.EWAY_SERVICE_URL ?? "").replace(/\/+$/, "");
+  const loginRes = await fetch(`${serviceUrl}/API.svc/LogIn`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userName: user,
+      passwordHash: createHash("md5").update(pass, "utf8").digest("hex"),
+      appVersion: "Scribe1.0",
+      clientMachineIdentifier: "scribe-server",
+    }),
+  });
+  const loginRaw = (await loginRes.json()) as Record<string, unknown>;
+
+  // Find whichever key carries the session id, without assuming its name.
+  const sessionEntry = Object.entries(loginRaw).find(
+    ([k, v]) => typeof v === "string" && /session/i.test(k) && (v as string).length > 0
+  );
+  const session = sessionEntry ? (sessionEntry[1] as string) : null;
+
+  if (!session) {
+    return NextResponse.json({ step: "login", loginRaw }, { status: 502 });
   }
-  const session = login.sessionId;
 
   const stamp = new Date();
   const start = stamp.toISOString();
