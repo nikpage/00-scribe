@@ -75,9 +75,27 @@ export async function GET(request: Request) {
   }
 
   // Pull eWay's own field + enum definitions so we can map the custom slots
-  // (af_NN) to Oblast potreb / Forma / Typ and read their value IDs.
+  // (af_NN) to Oblast potreb / Forma / Typ and read their value IDs. The raw
+  // catalogs are huge (every record carries dozens of GUID/timestamp columns),
+  // so keep only the few keys that actually matter for the mapping.
   const additionalFields = await ewayCall(session, "GetAdditionalFields", {});
   const enumTypes = await ewayCall(session, "GetEnumTypes", {});
+
+  const pick = (obj: unknown, keys: string[]) => {
+    if (!obj || typeof obj !== "object") return obj;
+    const src = obj as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const k of keys) if (k in src && src[k] != null) out[k] = src[k];
+    return out;
+  };
+  const asArray = (data: unknown) => (Array.isArray(data) ? data : []);
+
+  const fields = asArray(additionalFields.data).map((f) =>
+    pick(f, ["ColumnName", "FieldId", "Name", "FileAs", "Type", "AssociatedEnumTypeGuid"])
+  );
+  const enums = asArray(enumTypes.data).map((e) =>
+    pick(e, ["ItemGUID", "EnumName", "Name", "FileAs", "EnumValues", "EnumValue"])
+  );
 
   return NextResponse.json({
     loggedIn: true,
@@ -87,10 +105,7 @@ export async function GET(request: Request) {
       readBack !== null &&
       typeof readBack === "object" &&
       (readBack as { ok?: boolean }).ok === true,
-    definitions: {
-      additionalFields: additionalFields.data,
-      enumTypes: enumTypes.data,
-    },
-    raw: { saveRaw: save.raw, readBack },
+    counts: { additionalFields: fields.length, enumTypes: enums.length },
+    definitions: { additionalFields: fields, enumTypes: enums },
   });
 }
