@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { TranscriptViewer } from "@/components/transcript-viewer";
+import { EwayJournalCard } from "@/components/eway-journal-card";
 import { useParams } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
 import { useAppUser } from "@/components/app-shell";
@@ -90,6 +91,12 @@ export default function TranscriptPage() {
             ` · ${Math.floor(recording.duration_seconds / 60)}:${(recording.duration_seconds % 60).toString().padStart(2, "0")}`}
         </p>
       </div>
+
+      <EwayJournalCard
+        clientName={recording.label}
+        recordedAt={recording.recorded_at}
+        initialNote={recording.transcript.utterances.map((u) => u.text).join("\n")}
+      />
 
       <TranscriptViewer
         utterances={recording.transcript.utterances}
