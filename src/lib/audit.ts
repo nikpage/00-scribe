@@ -11,7 +11,8 @@ export type AuditAction =
   | "view_manager_dashboard"
   | "eway_connect"
   | "eway_disconnect"
-  | "eway_test";
+  | "eway_test"
+  | "eway_journal_save";
 
 export type AuditTargetType = "client" | "recording" | "worker" | "system";
 
