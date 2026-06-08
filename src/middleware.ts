@@ -12,7 +12,10 @@ const securityHeaders: Record<string, string> = {
 export async function middleware(request: NextRequest) {
   // Skip Supabase session refresh for the transcription webhook — it has no
   // session and must be reachable by the third-party provider.
-  if (request.nextUrl.pathname.startsWith("/api/webhook")) {
+  if (
+    request.nextUrl.pathname.startsWith("/api/webhook") ||
+    request.nextUrl.pathname.startsWith("/api/eway/selftest")
+  ) {
     const passthrough = NextResponse.next();
     for (const [k, v] of Object.entries(securityHeaders)) passthrough.headers.set(k, v);
     return passthrough;
