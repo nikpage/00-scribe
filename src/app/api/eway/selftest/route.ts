@@ -74,6 +74,11 @@ export async function GET(request: Request) {
     readBack = got;
   }
 
+  // Pull eWay's own field + enum definitions so we can map the custom slots
+  // (af_NN) to Oblast potreb / Forma / Typ and read their value IDs.
+  const additionalFields = await ewayCall(session, "GetAdditionalFields", {});
+  const enumTypes = await ewayCall(session, "GetEnumTypes", {});
+
   return NextResponse.json({
     loggedIn: true,
     inserted: save.ok,
@@ -82,6 +87,10 @@ export async function GET(request: Request) {
       readBack !== null &&
       typeof readBack === "object" &&
       (readBack as { ok?: boolean }).ok === true,
+    definitions: {
+      additionalFields: additionalFields.data,
+      enumTypes: enumTypes.data,
+    },
     raw: { saveRaw: save.raw, readBack },
   });
 }
