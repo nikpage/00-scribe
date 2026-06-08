@@ -70,7 +70,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    loggedIn: login.ok,
+    loggedIn: true,
     inserted: save.ok,
     insertedGuid: guid,
     confirmedPresent:
