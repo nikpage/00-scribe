@@ -30,6 +30,7 @@ export interface EwayCallResult {
   returnCode: string;
   description: string | null;
   data: unknown;
+  raw: unknown;
 }
 
 // Generic authenticated call. All eWay API methods take a sessionId (from
@@ -53,6 +54,7 @@ export async function ewayCall(
       returnCode: `http_${res.status}`,
       description: `eWay returned HTTP ${res.status} for ${method}`,
       data: null,
+      raw: null,
     };
   }
 
@@ -67,6 +69,7 @@ export async function ewayCall(
     returnCode,
     description: json.Description ?? null,
     data: json.Data ?? null,
+    raw: json,
   };
 }
 

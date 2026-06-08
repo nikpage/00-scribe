@@ -57,10 +57,15 @@ export async function GET(request: Request) {
     dieOnItemConflict: false,
   });
 
-  const guid =
-    save.data && typeof save.data === "object"
-      ? (save.data as Record<string, unknown>).Guid ?? (save.data as Record<string, unknown>).ItemGUID
-      : null;
+  // The created GUID may sit anywhere in the response; find the first string
+  // value under a key that looks like a GUID, without assuming the key name.
+  let guid: string | null = null;
+  if (save.raw && typeof save.raw === "object") {
+    const entry = Object.entries(save.raw as Record<string, unknown>).find(
+      ([k, v]) => typeof v === "string" && /guid/i.test(k) && (v as string).length > 0
+    );
+    if (entry) guid = entry[1] as string;
+  }
 
   // Read it back to confirm it actually landed.
   let readBack: unknown = null;
@@ -77,6 +82,6 @@ export async function GET(request: Request) {
       readBack !== null &&
       typeof readBack === "object" &&
       (readBack as { ok?: boolean }).ok === true,
-    raw: { save, readBack },
+    raw: { saveRaw: save.raw, readBack },
   });
 }
