@@ -78,24 +78,58 @@ export async function GET(request: Request) {
   // (af_NN) to Oblast potreb / Forma / Typ and read their value IDs. The raw
   // catalogs are huge (every record carries dozens of GUID/timestamp columns),
   // so keep only the few keys that actually matter for the mapping.
+  //
+  // GetEnumTypes only returns the enum *headers* (GUID + name); the actual
+  // selectable values (the IDs we write into a journal) come from
+  // GetEnumValues, so we fetch those too and group them by their enum type.
   const additionalFields = await ewayCall(session, "GetAdditionalFields", {});
   const enumTypes = await ewayCall(session, "GetEnumTypes", {});
+  const enumValues = await ewayCall(session, "GetEnumValues", {});
 
   const pick = (obj: unknown, keys: string[]) => {
-    if (!obj || typeof obj !== "object") return obj;
+    if (!obj || typeof obj !== "object") return obj as Record<string, unknown>;
     const src = obj as Record<string, unknown>;
     const out: Record<string, unknown> = {};
     for (const k of keys) if (k in src && src[k] != null) out[k] = src[k];
     return out;
   };
-  const asArray = (data: unknown) => (Array.isArray(data) ? data : []);
+  const asArray = (data: unknown) => (Array.isArray(data) ? (data as unknown[]) : []);
+  const str = (obj: unknown, key: string) => {
+    const v = obj && typeof obj === "object" ? (obj as Record<string, unknown>)[key] : null;
+    return typeof v === "string" ? v : null;
+  };
 
+  // Keep ObjectType so Journal fields can be told apart from Users/Contacts.
   const fields = asArray(additionalFields.data).map((f) =>
-    pick(f, ["ColumnName", "FieldId", "Name", "FileAs", "Type", "AssociatedEnumTypeGuid"])
+    pick(f, [
+      "ColumnName",
+      "FieldId",
+      "Name",
+      "FileAs",
+      "Type",
+      "AssociatedEnumTypeGuid",
+      "ObjectTypeFolderName",
+      "ObjectTypeId",
+    ])
   );
-  const enums = asArray(enumTypes.data).map((e) =>
-    pick(e, ["ItemGUID", "EnumName", "Name", "FileAs", "EnumValues", "EnumValue"])
-  );
+
+  // Group the flat value list under the enum type it belongs to, so each
+  // dropdown shows its options (value GUID + label + rank) in one place.
+  const valuesByType = new Map<string, Record<string, unknown>[]>();
+  for (const v of asArray(enumValues.data)) {
+    const typeGuid = str(v, "EnumTypeGuid") ?? str(v, "EnumType") ?? str(v, "AssociatedEnumTypeGuid");
+    if (!typeGuid) continue;
+    const compact = pick(v, ["ItemGUID", "EnumValueGuid", "FileAs", "En", "Cz", "Rank", "IsDefault", "IsVisible"]);
+    const bucket = valuesByType.get(typeGuid) ?? [];
+    bucket.push(compact);
+    valuesByType.set(typeGuid, bucket);
+  }
+
+  const enums = asArray(enumTypes.data).map((e) => {
+    const head = pick(e, ["ItemGUID", "EnumName", "FileAs"]);
+    const guid = str(head, "ItemGUID");
+    return { ...head, values: guid ? valuesByType.get(guid) ?? [] : [] };
+  });
 
   return NextResponse.json({
     loggedIn: true,
@@ -105,7 +139,15 @@ export async function GET(request: Request) {
       readBack !== null &&
       typeof readBack === "object" &&
       (readBack as { ok?: boolean }).ok === true,
-    counts: { additionalFields: fields.length, enumTypes: enums.length },
+    counts: {
+      additionalFields: fields.length,
+      enumTypes: enums.length,
+      enumValues: asArray(enumValues.data).length,
+      groupedValueTypes: valuesByType.size,
+    },
+    // One untouched value row so we can read GetEnumValues' real key names if
+    // the grouping above came back empty (i.e. my key guesses were wrong).
+    enumValueSample: asArray(enumValues.data)[0] ?? null,
     definitions: { additionalFields: fields, enumTypes: enums },
   });
 }
