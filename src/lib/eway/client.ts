@@ -25,6 +25,51 @@ function getServiceUrl(): string {
   return url.replace(/\/+$/, "");
 }
 
+export interface EwayCallResult {
+  ok: boolean;
+  returnCode: string;
+  description: string | null;
+  data: unknown;
+}
+
+// Generic authenticated call. All eWay API methods take a sessionId (from
+// LogIn) in the body alongside any method-specific fields, and answer with a
+// ReturnCode plus a Data payload. We return the parsed result verbatim so the
+// caller can inspect both success and failure.
+export async function ewayCall(
+  sessionId: string,
+  method: string,
+  payload: Record<string, unknown> = {}
+): Promise<EwayCallResult> {
+  const res = await fetch(`${getServiceUrl()}/API.svc/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, ...payload }),
+  });
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      returnCode: `http_${res.status}`,
+      description: `eWay returned HTTP ${res.status} for ${method}`,
+      data: null,
+    };
+  }
+
+  const json = (await res.json()) as {
+    ReturnCode?: string;
+    Description?: string;
+    Data?: unknown;
+  };
+  const returnCode = json.ReturnCode ?? "rcUnknown";
+  return {
+    ok: returnCode === "rcSuccess",
+    returnCode,
+    description: json.Description ?? null,
+    data: json.Data ?? null,
+  };
+}
+
 function md5Hex(input: string): string {
   return createHash("md5").update(input, "utf8").digest("hex");
 }
