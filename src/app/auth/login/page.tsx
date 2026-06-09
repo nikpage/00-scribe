@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { startAuthentication } from "@simplewebauthn/browser";
+import { useState, useEffect } from "react";
+import {
+  startAuthentication,
+  browserSupportsWebAuthnAutofill,
+} from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useLang } from "@/hooks/use-lang";
@@ -16,9 +19,9 @@ export default function AuthPage() {
   const { lang, switchLang, t } = useLang();
   const supabase = createClient();
 
-  async function handleSignIn() {
+  async function signInWithPasskey(useAutofill: boolean) {
     setError("");
-    setLoading("passkey");
+    if (!useAutofill) setLoading("passkey");
 
     try {
       const optionsRes = await fetch("/api/auth/authenticate", {
@@ -30,7 +33,10 @@ export default function AuthPage() {
       const options = await optionsRes.json();
       const challenge = options.challenge;
 
-      const credential = await startAuthentication({ optionsJSON: options });
+      const credential = await startAuthentication({
+        optionsJSON: options,
+        useBrowserAutofill: useAutofill,
+      });
 
       const verifyRes = await fetch("/api/auth/authenticate", {
         method: "POST",
@@ -44,11 +50,25 @@ export default function AuthPage() {
 
       router.push("/queue");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("authFailed"));
+      // Autofill (conditional UI) aborts are normal — only surface real,
+      // user-initiated failures.
+      if (!useAutofill) {
+        setError(err instanceof Error ? err.message : t("authFailed"));
+      }
     } finally {
-      setLoading(null);
+      if (!useAutofill) setLoading(null);
     }
   }
+
+  // Offer the passkey through the browser's autofill the moment the page loads.
+  // If the device has no passkey, nothing happens and the email field is just
+  // there for the magic link.
+  useEffect(() => {
+    browserSupportsWebAuthnAutofill().then((supported) => {
+      if (supported) signInWithPasskey(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();
@@ -92,7 +112,7 @@ export default function AuthPage() {
 
         {/* Sign in — returning user with a passkey on this device */}
         <button
-          onClick={handleSignIn}
+          onClick={() => signInWithPasskey(false)}
           disabled={loading !== null}
           className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
         >
@@ -113,6 +133,8 @@ export default function AuthPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoFocus
+            autoComplete="username webauthn"
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
           />
           <button

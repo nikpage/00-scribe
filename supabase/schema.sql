@@ -13,7 +13,7 @@ create table if not exists profiles (
 create table if not exists credentials (
   id text primary key,
   user_id uuid references profiles(id) on delete cascade not null,
-  public_key bytea not null,
+  public_key text not null,
   counter bigint not null default 0,
   transports text[] default '{}',
   created_at timestamptz default now()
