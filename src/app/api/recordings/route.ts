@@ -53,6 +53,8 @@ export async function POST(request: Request) {
     language,
     kind,
     parent_recording_id,
+    eway_contact_guid,
+    eway_contact_name,
   } = body;
 
   const admin = createAdminClient();
@@ -122,6 +124,8 @@ export async function POST(request: Request) {
       language: language || null,
       kind: recordingKind,
       parent_recording_id: parentId,
+      eway_contact_guid: typeof eway_contact_guid === "string" ? eway_contact_guid : null,
+      eway_contact_name: typeof eway_contact_name === "string" ? eway_contact_name : null,
     })
     .select()
     .single();

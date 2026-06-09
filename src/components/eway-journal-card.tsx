@@ -16,20 +16,33 @@ interface EwayJournalCardProps {
   initialNote: string;
   // ISO datetime to seed the time suggestion from (the phone's recording time).
   recordedAt: string;
+  // The eWay contact chosen up front on the record screen, if any. When set,
+  // it's pre-selected and no search is needed.
+  initialContactGuid?: string | null;
+  initialContactName?: string | null;
 }
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
-export function EwayJournalCard({ clientName, initialNote, recordedAt }: EwayJournalCardProps) {
+export function EwayJournalCard({
+  clientName,
+  initialNote,
+  recordedAt,
+  initialContactGuid,
+  initialContactName,
+}: EwayJournalCardProps) {
   const { lang, t } = useLang();
 
-  // Contact search
-  const [query, setQuery] = useState(clientName);
+  // Contact: pre-selected from the record screen when we have its GUID.
+  const seededContact: ContactOption | null = initialContactGuid
+    ? { guid: initialContactGuid, name: initialContactName || clientName, email: null }
+    : null;
+  const [query, setQuery] = useState(seededContact?.name ?? clientName);
   const [results, setResults] = useState<ContactOption[]>([]);
   const [searching, setSearching] = useState(false);
-  const [picked, setPicked] = useState<ContactOption | null>(null);
+  const [picked, setPicked] = useState<ContactOption | null>(seededContact);
   const [open, setOpen] = useState(false);
 
   // Date is always today; time is suggested from the phone but editable.
