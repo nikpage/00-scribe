@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
 import { useAppUser } from "@/components/app-shell";
 
@@ -20,12 +19,6 @@ export default function ClientsPage() {
   const user = useAppUser();
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newAddress, setNewAddress] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const router = useRouter();
 
   async function loadClients() {
     const r = await fetch("/api/clients");
@@ -36,37 +29,6 @@ export default function ClientsPage() {
   useEffect(() => {
     loadClients().finally(() => setLoading(false));
   }, []);
-
-  async function submitNew(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      const res = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName, address: newAddress }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || t("saveFailed"));
-        return;
-      }
-      setNewName("");
-      setNewAddress("");
-      setAdding(false);
-      if (data.client?.id) {
-        router.push(`/clients/${data.client.id}`);
-      } else {
-        await loadClients();
-      }
-    } catch {
-      setError(t("saveFailed"));
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   function formatDate(iso: string | null) {
     if (!iso) return "—";
@@ -81,72 +43,7 @@ export default function ClientsPage() {
     <main className="p-4 md:p-6">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">{user.isManager ? t("allClients") : t("myClients")}</h2>
-        {!adding && (
-          <button
-            onClick={() => setAdding(true)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
-          >
-            + {t("addClient")}
-          </button>
-        )}
       </div>
-
-      {adding && (
-        <form
-          onSubmit={submitNew}
-          className="mb-6 space-y-3 rounded-lg border border-border bg-background p-4"
-        >
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              {t("clientNameLabel")}
-            </label>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder={t("clientNamePlaceholder")}
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-              autoFocus
-              autoComplete="off"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              {t("addressLabel")}
-            </label>
-            <input
-              type="text"
-              value={newAddress}
-              onChange={(e) => setNewAddress(e.target.value)}
-              placeholder={t("addressPlaceholder")}
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-              autoComplete="off"
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={!newName.trim() || submitting}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light disabled:opacity-50"
-            >
-              {submitting ? t("saving") : t("save")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAdding(false);
-                setNewName("");
-                setNewAddress("");
-                setError("");
-              }}
-              className="rounded-lg bg-muted px-4 py-2 text-sm font-medium hover:bg-border"
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </form>
-      )}
 
       {loading ? (
         <div className="text-muted-foreground">{t("loading")}</div>

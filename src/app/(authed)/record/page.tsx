@@ -35,6 +35,7 @@ export default function RecordPage() {
   const [contactResults, setContactResults] = useState<EwayContact[]>([]);
   const [contactSearching, setContactSearching] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [contactError, setContactError] = useState("");
   const [speakerCount, setSpeakerCount] = useState(2);
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
@@ -136,24 +137,34 @@ export default function RecordPage() {
     const q = label.trim();
     if (q.length < 2) {
       setContactResults([]);
+      setContactOpen(false);
+      setContactError("");
       return;
     }
+    // Open the dropdown and show "searching" right away so it's clear the
+    // lookup is running, then debounce the actual request.
+    setContactOpen(true);
+    setContactSearching(true);
+    setContactError("");
     const timer = setTimeout(async () => {
-      setContactSearching(true);
       try {
         const res = await fetch(`/api/eway/contacts?q=${encodeURIComponent(q)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setContactResults(data.contacts || []);
-        setContactOpen(true);
-      } catch {
-        // Ignore — optional UX.
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setContactError(data.error || t("ewayJournalFailed"));
+          setContactResults([]);
+        } else {
+          setContactResults(data.contacts || []);
+        }
+      } catch (err) {
+        setContactError(err instanceof Error ? err.message : t("ewayJournalFailed"));
+        setContactResults([]);
       } finally {
         setContactSearching(false);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [label, isNotes, parentRecordingId, contactGuid]);
+  }, [label, isNotes, parentRecordingId, contactGuid, t]);
 
   function pickSuggestion(c: ClientSuggestion) {
     setLabel(c.name);
@@ -397,7 +408,7 @@ export default function RecordPage() {
     <div className="p-4 pt-8">
       <div className="w-full max-w-sm mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-center">
-          {isNotes ? t("postSessionNotesTitle") : t("newRecording")}
+          {isNotes && parentRecordingId ? t("postSessionNotesTitle") : t("newRecording")}
         </h1>
 
         {state === "idle" && (
@@ -429,12 +440,15 @@ export default function RecordPage() {
                     ✓ {label}
                   </span>
                 )}
-                {contactOpen && (label.trim().length >= 2) && !contactGuid && (
+                {contactOpen && !contactGuid && (
                   <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-border bg-background shadow-lg">
                     {contactSearching && (
                       <li className="px-4 py-3 text-sm text-muted-foreground">{t("ewayJournalSearching")}</li>
                     )}
-                    {!contactSearching && contactResults.length === 0 && (
+                    {!contactSearching && contactError && (
+                      <li className="px-4 py-3 text-sm text-destructive">{contactError}</li>
+                    )}
+                    {!contactSearching && !contactError && contactResults.length === 0 && (
                       <li className="px-4 py-3 text-sm text-muted-foreground">{t("ewayJournalNoResults")}</li>
                     )}
                     {contactResults.map((c) => (
