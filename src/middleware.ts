@@ -10,11 +10,14 @@ const securityHeaders: Record<string, string> = {
 };
 
 export async function middleware(request: NextRequest) {
-  // Skip Supabase session refresh for the transcription webhook — it has no
-  // session and must be reachable by the third-party provider.
+  // Skip Supabase session refresh for requests that have no session to refresh:
+  // the transcription webhook (reachable by the third-party provider) and the
+  // auth endpoints themselves (the user is mid-login). Calling getUser() here
+  // just adds a wasted Supabase round-trip to the two hottest login requests.
   if (
     request.nextUrl.pathname.startsWith("/api/webhook") ||
-    request.nextUrl.pathname.startsWith("/api/eway/selftest")
+    request.nextUrl.pathname.startsWith("/api/eway/selftest") ||
+    request.nextUrl.pathname.startsWith("/api/auth")
   ) {
     const passthrough = NextResponse.next();
     for (const [k, v] of Object.entries(securityHeaders)) passthrough.headers.set(k, v);
