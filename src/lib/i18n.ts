@@ -26,6 +26,10 @@ const translations = {
     fullName: "Celé jméno",
     continue: "Pokračovat",
     saving: "Ukládání...",
+    passkeyOfferTitle: "Rychlejší přihlášení",
+    passkeyOfferDesc:
+      "Nastavte si passkey a příště se přihlásíte otiskem prstu nebo obličejem — bez emailu.",
+    skipForNow: "Přeskočit",
     // Record
     newRecording: "Nový záznam",
     enterLabel: "Zadejte označení a nahrajte rozhovor",
@@ -241,6 +245,10 @@ const translations = {
     fullName: "Your full name",
     continue: "Continue",
     saving: "Saving...",
+    passkeyOfferTitle: "Faster sign-in",
+    passkeyOfferDesc:
+      "Set up a passkey to sign in next time with your fingerprint or face — no email needed.",
+    skipForNow: "Skip for now",
     newRecording: "New Recording",
     enterLabel: "Enter a label, then record the interview",
     clientName: "Client name (e.g. NovakJan)",
