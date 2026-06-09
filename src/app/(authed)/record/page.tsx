@@ -24,11 +24,17 @@ function readRecordParams(): {
 type RecordingState = "idle" | "recording" | "saving";
 
 type ClientSuggestion = { id: string; name: string; address: string | null };
+type EwayContact = { guid: string; name: string; email: string | null };
 
 export default function RecordPage() {
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
+  // eWay contact chosen up front for a notes recording (the journal's contact).
+  const [contactGuid, setContactGuid] = useState<string | null>(null);
+  const [contactResults, setContactResults] = useState<EwayContact[]>([]);
+  const [contactSearching, setContactSearching] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const [speakerCount, setSpeakerCount] = useState(2);
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
@@ -97,8 +103,13 @@ export default function RecordPage() {
     };
   }, []);
 
-  // Debounced client-name autocomplete.
+  // Debounced client-name autocomplete (interview flow only — the notes flow
+  // searches eWay contacts instead, see below).
   useEffect(() => {
+    if (isNotes && !parentRecordingId) {
+      setSuggestions([]);
+      return;
+    }
     const q = label.trim();
     if (q.length < 2) {
       setSuggestions([]);
@@ -115,12 +126,46 @@ export default function RecordPage() {
       }
     }, 200);
     return () => clearTimeout(timer);
-  }, [label]);
+  }, [label, isNotes, parentRecordingId]);
+
+  // Debounced eWay contact search for a standalone notes recording. The chosen
+  // contact is what the journal attaches to, so it's picked here up front.
+  useEffect(() => {
+    if (!isNotes || parentRecordingId) return;
+    if (contactGuid) return; // a contact is picked; editing the field clears it
+    const q = label.trim();
+    if (q.length < 2) {
+      setContactResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setContactSearching(true);
+      try {
+        const res = await fetch(`/api/eway/contacts?q=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setContactResults(data.contacts || []);
+        setContactOpen(true);
+      } catch {
+        // Ignore — optional UX.
+      } finally {
+        setContactSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [label, isNotes, parentRecordingId, contactGuid]);
 
   function pickSuggestion(c: ClientSuggestion) {
     setLabel(c.name);
     setAddress(c.address || "");
     setSuggestions([]);
+  }
+
+  function pickContact(c: EwayContact) {
+    setContactGuid(c.guid);
+    setLabel(c.name);
+    setContactResults([]);
+    setContactOpen(false);
   }
 
   function formatTime(seconds: number): string {
@@ -256,6 +301,8 @@ export default function RecordPage() {
           language: lang,
           kind,
           parent_recording_id: parentRecordingId,
+          eway_contact_guid: contactGuid,
+          eway_contact_name: contactGuid ? label.trim() : null,
         }),
       });
 
@@ -301,6 +348,8 @@ export default function RecordPage() {
           speakers_expected: isNotes ? 1 : speakerCount,
           kind,
           parent_recording_id: parentRecordingId,
+          eway_contact_guid: contactGuid,
+          eway_contact_name: contactGuid ? label.trim() : null,
         }),
       });
 
@@ -357,6 +406,53 @@ export default function RecordPage() {
               <div className="rounded-lg border border-border bg-muted p-3 text-sm">
                 <div className="text-xs text-muted-foreground">{t("notesForClient")}</div>
                 <div className="font-medium">{label || "…"}</div>
+              </div>
+            ) : isNotes ? (
+              <div className="relative">
+                <label className="block text-sm font-medium mb-1">
+                  {t("ewayJournalContact")}
+                </label>
+                <input
+                  type="text"
+                  placeholder={t("ewayJournalContactSearch")}
+                  value={label}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                    setContactGuid(null);
+                  }}
+                  onFocus={() => contactResults.length > 0 && setContactOpen(true)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+                  autoComplete="off"
+                />
+                {contactGuid && (
+                  <span className="mt-1 inline-block text-xs text-green-600 dark:text-green-400">
+                    ✓ {label}
+                  </span>
+                )}
+                {contactOpen && (label.trim().length >= 2) && !contactGuid && (
+                  <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-border bg-background shadow-lg">
+                    {contactSearching && (
+                      <li className="px-4 py-3 text-sm text-muted-foreground">{t("ewayJournalSearching")}</li>
+                    )}
+                    {!contactSearching && contactResults.length === 0 && (
+                      <li className="px-4 py-3 text-sm text-muted-foreground">{t("ewayJournalNoResults")}</li>
+                    )}
+                    {contactResults.map((c) => (
+                      <li key={c.guid}>
+                        <button
+                          type="button"
+                          onClick={() => pickContact(c)}
+                          className="block w-full px-4 py-3 text-left text-sm hover:bg-muted"
+                        >
+                          <div className="font-medium">{c.name}</div>
+                          {c.email && (
+                            <div className="text-xs text-muted-foreground">{c.email}</div>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ) : (
               <>
@@ -434,7 +530,7 @@ export default function RecordPage() {
 
             <button
               onClick={startRecording}
-              disabled={!label.trim() || uploadingFile}
+              disabled={!label.trim() || uploadingFile || (isNotes && !parentRecordingId && !contactGuid)}
               className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
             >
               {isNotes ? t("startNotesRecording") : t("startRecording")}
@@ -455,7 +551,7 @@ export default function RecordPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={!label.trim() || uploadingFile}
+              disabled={!label.trim() || uploadingFile || (isNotes && !parentRecordingId && !contactGuid)}
               className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
             >
               {uploadingFile ? t("uploadingFile") : t("selectAudioFile")}
