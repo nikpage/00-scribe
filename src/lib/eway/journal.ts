@@ -94,23 +94,38 @@ export interface ContactOption {
   email: string | null;
 }
 
-// Pull contacts so the worker can search by name. eWay's SearchContacts does an
-// AND-match on the fields given; for a free-text "type a name" picker we fetch
-// the contact list and filter here, which is simpler and matches partials.
+// Fold diacritics and lowercase so "kolacek" matches "Koláček" — Czech names
+// rely on accents the worker won't always type.
+function fold(s: string): string {
+  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+// Pull contacts so the worker can search by name. We fetch the contact list and
+// filter here: every word typed (in any order, accent-free) must appear in the
+// contact's first/last/FileAs. The display name shows surname + first name so
+// two "Koláček"s are distinguishable.
 export async function searchContacts(
   session: string,
   query: string
 ): Promise<ContactOption[]> {
   const res = await ewayCall(session, "GetContacts", {});
-  const q = query.trim().toLowerCase();
+  const tokens = fold(query).split(/\s+/).filter(Boolean);
   return asArray(res.data)
-    .map((c) => ({
-      guid: str(c, "ItemGUID") ?? "",
-      name: str(c, "FileAs") ?? "",
-      email: str(c, "Email1Address"),
-    }))
-    .filter((c) => c.guid && (!q || c.name.toLowerCase().includes(q)))
-    .slice(0, 50);
+    .map((c) => {
+      const first = str(c, "FirstName") ?? "";
+      const last = str(c, "LastName") ?? "";
+      const fileAs = str(c, "FileAs") ?? "";
+      const name = last && first ? `${last}, ${first}` : fileAs || last || first;
+      return {
+        guid: str(c, "ItemGUID") ?? "",
+        name,
+        email: str(c, "Email1Address"),
+        haystack: fold(`${fileAs} ${first} ${last}`),
+      };
+    })
+    .filter((c) => c.guid && c.name && tokens.every((t) => c.haystack.includes(t)))
+    .slice(0, 50)
+    .map(({ guid, name, email }) => ({ guid, name, email }));
 }
 
 export interface SaveJournalInput {
