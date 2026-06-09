@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  startAuthentication,
-  browserSupportsWebAuthnAutofill,
-} from "@simplewebauthn/browser";
+import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useLang } from "@/hooks/use-lang";
@@ -19,9 +16,12 @@ export default function AuthPage() {
   const { lang, switchLang, t } = useLang();
   const supabase = createClient();
 
-  async function signInWithPasskey(useAutofill: boolean) {
+  // `auto` = fired automatically on page load. The user didn't ask, and may
+  // have no passkey on this device, so we stay silent on failure/cancel and
+  // let them fall back to the magic link. A manual button press surfaces errors.
+  async function signInWithPasskey(auto: boolean) {
     setError("");
-    if (!useAutofill) setLoading("passkey");
+    if (!auto) setLoading("passkey");
 
     try {
       const optionsRes = await fetch("/api/auth/authenticate", {
@@ -33,10 +33,7 @@ export default function AuthPage() {
       const options = await optionsRes.json();
       const challenge = options.challenge;
 
-      const credential = await startAuthentication({
-        optionsJSON: options,
-        useBrowserAutofill: useAutofill,
-      });
+      const credential = await startAuthentication({ optionsJSON: options });
 
       const verifyRes = await fetch("/api/auth/authenticate", {
         method: "POST",
@@ -50,23 +47,15 @@ export default function AuthPage() {
 
       router.push("/queue");
     } catch (err) {
-      // Autofill (conditional UI) aborts are normal — only surface real,
-      // user-initiated failures.
-      if (!useAutofill) {
-        setError(err instanceof Error ? err.message : t("authFailed"));
-      }
+      if (!auto) setError(err instanceof Error ? err.message : t("authFailed"));
     } finally {
-      if (!useAutofill) setLoading(null);
+      if (!auto) setLoading(null);
     }
   }
 
-  // Offer the passkey through the browser's autofill the moment the page loads.
-  // If the device has no passkey, nothing happens and the email field is just
-  // there for the magic link.
+  // Pop the passkey prompt by itself on load — single ceremony, no button tap.
   useEffect(() => {
-    browserSupportsWebAuthnAutofill().then((supported) => {
-      if (supported) signInWithPasskey(true);
-    });
+    signInWithPasskey(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,8 +122,6 @@ export default function AuthPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            autoFocus
-            autoComplete="username webauthn"
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
           />
           <button
