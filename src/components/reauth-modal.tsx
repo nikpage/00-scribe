@@ -27,29 +27,42 @@ export function ReauthModal({
     router.replace("/auth/login");
   }
 
+  async function runCeremony() {
+    const optionsRes = await fetch("/api/auth/authenticate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "options" }),
+    });
+    if (!optionsRes.ok) throw new Error(t("authFailed"));
+    const options = await optionsRes.json();
+    const challenge = options.challenge;
+
+    const credential = await startAuthentication({ optionsJSON: options });
+
+    const verifyRes = await fetch("/api/auth/authenticate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "verify", credential, challenge }),
+    });
+    if (!verifyRes.ok) {
+      const data = await verifyRes.json().catch(() => ({}));
+      throw new Error(data.error || t("authFailed"));
+    }
+  }
+
   async function verify() {
     setVerifying(true);
     setError("");
     try {
-      const optionsRes = await fetch("/api/auth/authenticate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: "options" }),
-      });
-      if (!optionsRes.ok) throw new Error(t("authFailed"));
-      const options = await optionsRes.json();
-      const challenge = options.challenge;
-
-      const credential = await startAuthentication({ optionsJSON: options });
-
-      const verifyRes = await fetch("/api/auth/authenticate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: "verify", credential, challenge }),
-      });
-      if (!verifyRes.ok) {
-        const data = await verifyRes.json().catch(() => ({}));
-        throw new Error(data.error || t("authFailed"));
+      // Android's Credential Manager throws "unknown error" on the first call
+      // after the app has been idle — it isn't awake yet. The retry succeeds
+      // because the subsystem is now warm. Only a genuine double-failure counts
+      // toward the lockout, so a transient glitch can't log the user out.
+      try {
+        await runCeremony();
+      } catch {
+        await new Promise((r) => setTimeout(r, 300));
+        await runCeremony();
       }
 
       onSuccess();
