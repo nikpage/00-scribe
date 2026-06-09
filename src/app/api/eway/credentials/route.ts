@@ -68,7 +68,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const encrypted = encryptSecret(password);
+  let encrypted;
+  try {
+    encrypted = encryptSecret(password);
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : "Could not encrypt password" },
+      { status: 500 }
+    );
+  }
   const admin = createAdminClient();
   const { error } = await admin
     .from("eway_credentials")
