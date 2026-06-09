@@ -50,11 +50,19 @@ export async function POST(request: Request) {
   }
 
   if (!result.ok) {
+    // Surface which eWay server we actually tried, so a wrong EWAY_SERVICE_URL
+    // (right password, wrong database) is distinguishable from a real bad login.
+    const host = (process.env.EWAY_SERVICE_URL ?? "")
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
     return NextResponse.json(
       {
         ok: false,
         returnCode: result.returnCode,
-        description: result.description,
+        description: result.description
+          ? `${result.description} [${result.returnCode}] · server: ${host || "(EWAY_SERVICE_URL not set)"}`
+          : `${result.returnCode} · server: ${host || "(EWAY_SERVICE_URL not set)"}`,
+        host,
       },
       { status: 400 }
     );
