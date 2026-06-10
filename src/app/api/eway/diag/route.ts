@@ -24,7 +24,7 @@ async function safe(label: string, fn: () => Promise<unknown>) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,6 +65,22 @@ export async function GET() {
     return NextResponse.json({ step: "login", login }, { status: 502 });
   }
   const session = login.sessionId;
+
+  // If ?journal=<guid> is given, read that one journal back and return only its
+  // populated columns — the quickest way to learn the exact field keys eWay
+  // uses for Type, Superior Item, Contact Person, etc. on a real record.
+  const journalGuid = new URL(request.url).searchParams.get("journal");
+  if (journalGuid) {
+    const got = await ewayCall(session, "GetJournalsByItemGuids", { itemGuids: [journalGuid] });
+    const rec = Array.isArray(got.data) ? (got.data[0] as Record<string, unknown>) : null;
+    const populated: Record<string, unknown> = {};
+    if (rec) {
+      for (const [k, v] of Object.entries(rec)) {
+        if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) populated[k] = v;
+      }
+    }
+    return NextResponse.json({ journalGuid, returnCode: got.returnCode, populated });
+  }
 
   // Pull a small sample of real journals to reveal the exact field codes,
   // and the field/enum definitions so we can map the custom dropdowns.

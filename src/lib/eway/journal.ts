@@ -13,13 +13,14 @@ import { ewayCall } from "./client";
 
 // Fixed dropdown values, by their visible label in eWay.
 export const JOURNAL_DEFAULTS = {
-  forma: "Ambulantní", // af_41  (enum AF_41)
-  typKontaktu: "osobní", // af_50  (enum AF_50)
-  sor: "SOR", // _af_105 (enum AF_105)
-  cilovaSkupina: "osoba se zdravotním postižením", // _af_79 (enum AF_79)
+  forma: "Ambulantní", // af_41   Forma
+  typKontaktu: "osobní", // af_50   Typ kontaktu
+  cilovaSkupina: "osoba se zdravotním postižením", // _af_79  Cílová skupina
+  sorOblastPotreb: "Zajištění kontaktu se společenským prostředím", // _af_105 SOR Oblast potřeb
+  oblastDotazu: "SOR", // _af_42  Oblast dotazu
   intervencePocet: 1, // af_54
   kontaktPocet: 0, // af_55
-  // Nadřazená položka (parent item) rolls over with the calendar year.
+  // Superior item (parent), rolls over with the calendar year.
   superiorName: (year: number) => `Sociální služby ${year}`,
 } as const;
 
@@ -31,6 +32,7 @@ const ENUM_TYPE_BY_COLUMN = {
   af_50: "1cda2f5d-faf2-4071-979f-2c32f30d9995", // Typ kontaktu
   _af_79: "383948c9-e4e6-4b5e-97a4-1f646d23ed0a", // Cílová skupina
   _af_105: "95b3c79d-f482-4276-84e8-34cbc4b79421", // SOR Oblast potřeb
+  _af_42: "0611296b-fb1f-423d-b474-f02e22f2f19b", // Oblast dotazu
 } as const;
 
 function asArray(data: unknown): Record<string, unknown>[] {
@@ -151,11 +153,12 @@ export async function saveJournal(
   const year = new Date(input.eventStart).getFullYear();
   const subject = input.subject ?? JOURNAL_DEFAULTS.superiorName(year);
 
-  const [forma, typKontaktu, cilovaSkupina, sor] = await Promise.all([
+  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu] = await Promise.all([
     resolveEnumValue(session, "af_41", JOURNAL_DEFAULTS.forma),
     resolveEnumValue(session, "af_50", JOURNAL_DEFAULTS.typKontaktu),
     resolveEnumValue(session, "_af_79", JOURNAL_DEFAULTS.cilovaSkupina),
-    resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sor),
+    resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sorOblastPotreb),
+    resolveEnumValue(session, "_af_42", JOURNAL_DEFAULTS.oblastDotazu),
   ]);
 
   // Additional fields are set as columns directly on the transmit object.
@@ -171,7 +174,8 @@ export async function saveJournal(
   if (forma) transmitObject.af_41 = forma;
   if (typKontaktu) transmitObject.af_50 = typKontaktu;
   if (cilovaSkupina) transmitObject._af_79 = cilovaSkupina;
-  if (sor) transmitObject._af_105 = sor;
+  if (sorOblast) transmitObject._af_105 = sorOblast;
+  if (oblastDotazu) transmitObject._af_42 = oblastDotazu;
 
   const save = await ewayCall(session, "SaveJournal", {
     transmitObject,
