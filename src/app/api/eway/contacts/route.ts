@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       cache.set(sess.userId, entry);
     }
     return NextResponse.json(
-      { contacts: filterClients(entry.clients, q) },
+      { contacts: filterClients(entry.clients, q), total: entry.clients.length },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
