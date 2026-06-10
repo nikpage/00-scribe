@@ -103,6 +103,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ journalFields: fields });
   }
 
+  // If ?contact=<name> is given, return the first matching contact's populated
+  // fields, so we can see which field holds the Job Title (to filter to clients).
+  const contactQuery = new URL(request.url).searchParams.get("contact");
+  if (contactQuery) {
+    const got = await ewayCall(session, "GetContacts", {});
+    const q = contactQuery.trim().toLowerCase();
+    const rec = (Array.isArray(got.data) ? (got.data as Record<string, unknown>[]) : []).find(
+      (c) => String(c.FileAs ?? "").toLowerCase().includes(q)
+    );
+    const populated: Record<string, unknown> = {};
+    if (rec) {
+      for (const [k, v] of Object.entries(rec)) {
+        if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) populated[k] = v;
+      }
+    }
+    return NextResponse.json({ contactQuery, found: !!rec, populated });
+  }
+
   // Pull a small sample of real journals to reveal the exact field codes,
   // and the field/enum definitions so we can map the custom dropdowns.
   const journals = await ewayCall(session, "GetJournals", {});
