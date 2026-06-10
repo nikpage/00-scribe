@@ -71,7 +71,11 @@ export async function GET(request: Request) {
   // uses for Type, Superior Item, Contact Person, etc. on a real record.
   const journalGuid = new URL(request.url).searchParams.get("journal");
   if (journalGuid) {
-    const got = await ewayCall(session, "GetJournalsByItemGuids", { itemGuids: [journalGuid] });
+    const got = await ewayCall(session, "GetJournalsByItemGuids", {
+      itemGuids: [journalGuid],
+      includeForeignKeys: true,
+      includeRelations: true,
+    });
     const rec = Array.isArray(got.data) ? (got.data[0] as Record<string, unknown>) : null;
     const populated: Record<string, unknown> = {};
     if (rec) {
