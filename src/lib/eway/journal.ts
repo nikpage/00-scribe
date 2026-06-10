@@ -114,10 +114,20 @@ function fold(s: string): string {
   return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
+// A contact counts as a client if "klient" appears in its job-title text
+// (the agency tags clients that way — e.g. "klient", "Klient …"). Diacritics
+// folded so "klient"/"Klient" both match. We scan the contact's text fields so
+// it works regardless of exactly which field holds the job title.
+function isClient(c: Record<string, unknown>): boolean {
+  return Object.values(c).some(
+    (v) => typeof v === "string" && fold(v).includes("klient")
+  );
+}
+
 // Pull contacts so the worker can search by name. We fetch the contact list and
-// filter here: every word typed (in any order, accent-free) must appear in the
-// contact's first/last/FileAs. The display name shows surname + first name so
-// two "Koláček"s are distinguishable.
+// filter here: only clients (job title contains "klient"), then every word typed
+// (in any order, accent-free) must appear in the contact's first/last/FileAs.
+// The display name shows surname + first name so two "Koláček"s are distinct.
 export async function searchContacts(
   session: string,
   query: string
@@ -125,6 +135,7 @@ export async function searchContacts(
   const res = await ewayCall(session, "GetContacts", {});
   const tokens = fold(query).split(/\s+/).filter(Boolean);
   return asArray(res.data)
+    .filter(isClient)
     .map((c) => {
       const first = str(c, "FirstName") ?? "";
       const last = str(c, "LastName") ?? "";
