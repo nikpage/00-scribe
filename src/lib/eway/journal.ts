@@ -176,15 +176,18 @@ export async function saveJournal(
     ]);
 
   // Custom (af_NN) fields live under AdditionalFields, not as top-level columns.
+  // Keys never carry the leading underscore there. Type-1 enums take a single
+  // value GUID; Type-8 enums (Cílová skupina, SOR Oblast potřeb, Oblast dotazu)
+  // are multi-value and take an array of GUIDs.
   const additionalFields: Record<string, unknown> = {
     af_54: JOURNAL_DEFAULTS.intervencePocet,
     af_55: JOURNAL_DEFAULTS.kontaktPocet,
   };
-  if (forma) additionalFields.af_41 = forma;
-  if (typKontaktu) additionalFields.af_50 = typKontaktu;
-  if (cilovaSkupina) additionalFields._af_79 = cilovaSkupina;
-  if (sorOblast) additionalFields._af_105 = sorOblast;
-  if (oblastDotazu) additionalFields._af_42 = oblastDotazu;
+  if (forma) additionalFields.af_41 = forma; // Type-1
+  if (typKontaktu) additionalFields.af_50 = typKontaktu; // Type-1
+  if (cilovaSkupina) additionalFields.af_79 = [cilovaSkupina]; // Type-8
+  if (sorOblast) additionalFields.af_105 = [sorOblast]; // Type-8
+  if (oblastDotazu) additionalFields.af_42 = [oblastDotazu]; // Type-8
 
   const transmitObject: Record<string, unknown> = {
     FileAs: subject,
