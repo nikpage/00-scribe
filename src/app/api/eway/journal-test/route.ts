@@ -21,9 +21,10 @@ export async function GET(request: Request) {
   const contact = contacts[0];
 
   const now = new Date();
+  const lastName = contact.name.split(",")[0]?.trim() || contact.name;
   const result = await saveJournal(sess.session, {
     contactGuid: contact.guid,
-    contactName: contact.name,
+    subject: `${lastName}: SCRIBE TEST`,
     note: `SCRIBE TEST — delete me. Created ${now.toISOString()}`,
     eventStart: now.toISOString(),
     eventEnd: now.toISOString(),
