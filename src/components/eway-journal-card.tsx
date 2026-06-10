@@ -62,20 +62,24 @@ export function EwayJournalCard({
   useEffect(() => {
     if (picked && query === picked.name) return;
     if (debounce.current) clearTimeout(debounce.current);
+    // Ignore stale, out-of-order responses so the list doesn't flicker.
+    let active = true;
     debounce.current = setTimeout(async () => {
       setSearching(true);
       try {
         const res = await fetch(`/api/eway/contacts?q=${encodeURIComponent(query)}`);
         const data = await res.json();
+        if (!active) return;
         setResults(Array.isArray(data.contacts) ? data.contacts : []);
         setOpen(true);
       } catch {
-        setResults([]);
+        if (active) setResults([]);
       } finally {
-        setSearching(false);
+        if (active) setSearching(false);
       }
     }, 350);
     return () => {
+      active = false;
       if (debounce.current) clearTimeout(debounce.current);
     };
   }, [query, picked]);

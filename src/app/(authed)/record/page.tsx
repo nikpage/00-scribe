@@ -146,10 +146,14 @@ export default function RecordPage() {
     setContactOpen(true);
     setContactSearching(true);
     setContactError("");
+    // Ignore results from a query the user has already typed past, so the list
+    // doesn't flicker through stale, out-of-order responses.
+    let active = true;
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/eway/contacts?q=${encodeURIComponent(q)}`);
         const data = await res.json().catch(() => ({}));
+        if (!active) return;
         if (!res.ok) {
           setContactError(data.error || t("ewayJournalFailed"));
           setContactResults([]);
@@ -157,13 +161,17 @@ export default function RecordPage() {
           setContactResults(data.contacts || []);
         }
       } catch (err) {
+        if (!active) return;
         setContactError(err instanceof Error ? err.message : t("ewayJournalFailed"));
         setContactResults([]);
       } finally {
-        setContactSearching(false);
+        if (active) setContactSearching(false);
       }
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [label, isNotes, parentRecordingId, contactGuid, t]);
 
   function pickSuggestion(c: ClientSuggestion) {
