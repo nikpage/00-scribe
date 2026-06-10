@@ -178,6 +178,9 @@ export interface SaveJournalResult {
   contactLinked: boolean;
   returnCode: string;
   description: string | null;
+  // Diagnostics so a failed link/superior is explained, not silent.
+  relation?: { returnCode: string; description: string | null } | null;
+  superior?: { guid: string; folder: string } | null;
 }
 
 export async function saveJournal(
@@ -239,6 +242,7 @@ export async function saveJournal(
   // Attach the Journal to the chosen contact. eWay models this as a relation
   // between the Journal and the Contact folders.
   let contactLinked = false;
+  let relation: { returnCode: string; description: string | null } | null = null;
   if (save.ok && journalGuid && input.contactGuid) {
     // Per eWay's own library: the relation goes under transmitObject with
     // PascalCase keys and RelationType "GENERAL".
@@ -252,6 +256,7 @@ export async function saveJournal(
       },
     });
     contactLinked = rel.ok;
+    relation = { returnCode: rel.returnCode, description: rel.description };
   }
 
   return {
@@ -260,5 +265,7 @@ export async function saveJournal(
     contactLinked,
     returnCode: save.returnCode,
     description: save.description,
+    relation,
+    superior,
   };
 }
