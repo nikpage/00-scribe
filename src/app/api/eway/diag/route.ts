@@ -103,22 +103,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ journalFields: fields });
   }
 
-  // If ?contact=<name> is given, return the first matching contact's populated
-  // fields, so we can see which field holds the Job Title (to filter to clients).
+  // If ?contact=<name> is given, list EVERY matching contact with its Title
+  // (job title) and whether our client filter would keep it — so we can see why
+  // non-clients still show up.
   const contactQuery = new URL(request.url).searchParams.get("contact");
   if (contactQuery) {
     const got = await ewayCall(session, "GetContacts", {});
-    const q = contactQuery.trim().toLowerCase();
-    const rec = (Array.isArray(got.data) ? (got.data as Record<string, unknown>[]) : []).find(
-      (c) => String(c.FileAs ?? "").toLowerCase().includes(q)
-    );
-    const populated: Record<string, unknown> = {};
-    if (rec) {
-      for (const [k, v] of Object.entries(rec)) {
-        if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) populated[k] = v;
-      }
-    }
-    return NextResponse.json({ contactQuery, found: !!rec, populated });
+    const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const q = fold(contactQuery.trim());
+    const matches = (Array.isArray(got.data) ? (got.data as Record<string, unknown>[]) : [])
+      .filter((c) => fold(String(c.FileAs ?? "")).includes(q))
+      .map((c) => {
+        const title = typeof c.Title === "string" ? c.Title : null;
+        return {
+          name: c.FileAs,
+          title,
+          isClient: !!title && fold(title).includes("klient"),
+        };
+      });
+    return NextResponse.json({ contactQuery, count: matches.length, matches });
   }
 
   // Pull a small sample of real journals to reveal the exact field codes,
