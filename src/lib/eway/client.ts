@@ -103,17 +103,30 @@ export async function ewayLogin(
     };
   }
 
-  const data = (await res.json()) as {
+  const data = (await res.json()) as Record<string, unknown> & {
     ReturnCode?: string;
     Description?: string;
-    wcfSession?: string;
   };
 
-  const returnCode = data.ReturnCode ?? "rcUnknown";
+  const returnCode = (typeof data.ReturnCode === "string" ? data.ReturnCode : null) ?? "rcUnknown";
+
+  // eWay returns the session id under a key whose exact name/casing varies by
+  // version (wcfSession, WcfSession, SessionId…). Prefer the documented
+  // wcfSession, but fall back to any string key that looks like a session so a
+  // successful login never comes back without its id.
+  let sessionId: string | null =
+    typeof data.wcfSession === "string" && data.wcfSession.length > 0 ? data.wcfSession : null;
+  if (!sessionId) {
+    const entry = Object.entries(data).find(
+      ([k, v]) => typeof v === "string" && /session/i.test(k) && v.length > 0
+    );
+    sessionId = entry ? (entry[1] as string) : null;
+  }
+
   return {
     ok: returnCode === "rcSuccess",
     returnCode,
-    description: data.Description ?? null,
-    sessionId: data.wcfSession ?? null,
+    description: typeof data.Description === "string" ? data.Description : null,
+    sessionId,
   };
 }
