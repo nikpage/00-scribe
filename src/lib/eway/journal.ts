@@ -1,4 +1,5 @@
 import { ewayCall } from "./client";
+import { summarizeBrief } from "@/lib/analysis/gemini";
 
 // Building and saving the "social services" contact Journal in eWay.
 //
@@ -179,10 +180,24 @@ async function resolveSuperiorItem(
 
 export interface SaveJournalInput {
   contactGuid: string;
+  contactName?: string; // "Surname, First" — used to build the subject
   note: string; // transcribed notes -> Poznámka
   eventStart: string; // ISO
   eventEnd: string; // ISO
-  subject?: string;
+  subject?: string; // explicit subject overrides the generated one
+}
+
+// Subject is "<contact last name>: <brief AI summary of the note>". The picked
+// contact name is "Surname, First", so the last name is before the comma.
+async function buildSubject(contactName: string | undefined, note: string): Promise<string> {
+  const last = (contactName ?? "").split(",")[0]?.trim() || (contactName ?? "").trim();
+  let summary = "";
+  try {
+    summary = await summarizeBrief(note);
+  } catch {
+    // Best-effort: fall back to just the name if the AI summary fails.
+  }
+  return summary ? `${last}: ${summary}` : last;
 }
 
 export interface SaveJournalResult {
@@ -203,7 +218,8 @@ export async function saveJournal(
   input: SaveJournalInput
 ): Promise<SaveJournalResult> {
   const year = new Date(input.eventStart).getFullYear();
-  const subject = input.subject ?? JOURNAL_DEFAULTS.superiorName(year);
+  const subject =
+    input.subject?.trim() || (await buildSubject(input.contactName, input.note));
 
   const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalType] =
     await Promise.all([

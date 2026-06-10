@@ -24,11 +24,11 @@ export async function GET(request: Request) {
   const contact = contacts[0];
 
   const now = new Date();
-  const lastName = contact.name.split(",")[0]?.trim() || contact.name;
+  // No explicit subject -> exercises the real "<last name>: <AI summary>" path.
   const result = await saveJournal(sess.session, {
     contactGuid: contact.guid,
-    subject: `${lastName}: SCRIBE TEST`,
-    note: `SCRIBE TEST — delete me. Created ${now.toISOString()}`,
+    contactName: contact.name,
+    note: "Klient přišel na schůzku, řešili jsme bydlení a dávky. Domluven další kontakt. (SCRIBE TEST — delete me)",
     eventStart: now.toISOString(),
     eventEnd: now.toISOString(),
   });
