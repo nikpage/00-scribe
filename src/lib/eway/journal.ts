@@ -114,14 +114,13 @@ function fold(s: string): string {
   return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-// A contact counts as a client if "klient" appears in its job-title text
-// (the agency tags clients that way — e.g. "klient", "Klient …"). Diacritics
-// folded so "klient"/"Klient" both match. We scan the contact's text fields so
-// it works regardless of exactly which field holds the job title.
+// A contact counts as a client if "klient" appears in its job title — the
+// agency tags clients that way (e.g. "Klient Znojmo - ukončen (SOR)"). eWay
+// stores the job title in the "Title" field. Diacritics folded so klient/Klient
+// both match.
 function isClient(c: Record<string, unknown>): boolean {
-  return Object.values(c).some(
-    (v) => typeof v === "string" && fold(v).includes("klient")
-  );
+  const title = str(c, "Title");
+  return !!title && fold(title).includes("klient");
 }
 
 // Pull contacts so the worker can search by name. We fetch the contact list and
