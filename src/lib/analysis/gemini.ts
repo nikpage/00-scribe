@@ -38,7 +38,7 @@ Return ONLY valid JSON, no markdown fences or extra text.`;
 // A one-line summary for the eWay Journal subject, e.g. "Koláček: <phrase>".
 // Czech, no trailing punctuation, kept short so it fits the Subject field.
 export async function summarizeBrief(text: string): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
   const result = await model.generateContent([
     "Shrň následující poznámku ze sociální práce do JEDNÉ krátké fráze (max ~8 slov), česky. Vrať pouze tu frázi, bez uvozovek a bez tečky na konci.",
     `\n\n${text}`,
@@ -57,7 +57,7 @@ export async function analyzeTranscript(
     })
     .join("\n");
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
   const result = await model.generateContent([
     ANALYSIS_PROMPT,
     `\n\nTRANSCRIPT:\n${transcript}`,
