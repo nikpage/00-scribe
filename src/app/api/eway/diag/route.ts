@@ -82,6 +82,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ journalGuid, returnCode: got.returnCode, populated });
   }
 
+  // If ?defs=journal is given, return the additional-field definitions that
+  // belong to the Journal object type (af_NN are numbered per object type), so
+  // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
+  // skupina to the right column + enum.
+  if (new URL(request.url).searchParams.get("defs") === "journal") {
+    const af = await ewayCall(session, "GetAdditionalFields", {});
+    const fields = (Array.isArray(af.data) ? (af.data as Record<string, unknown>[]) : [])
+      .filter((f) => String(f.ObjectTypeFolderName ?? "").toLowerCase().includes("journal"))
+      .map((f) => ({
+        ColumnName: f.ColumnName,
+        Name: f.Name,
+        Type: f.Type,
+        AssociatedEnumTypeGuid: f.AssociatedEnumTypeGuid,
+      }));
+    return NextResponse.json({ journalFields: fields });
+  }
+
   // Pull a small sample of real journals to reveal the exact field codes,
   // and the field/enum definitions so we can map the custom dropdowns.
   const journals = await ewayCall(session, "GetJournals", {});
