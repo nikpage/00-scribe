@@ -181,6 +181,8 @@ export interface SaveJournalResult {
   // Diagnostics so a failed link/superior is explained, not silent.
   relation?: { returnCode: string; description: string | null } | null;
   superior?: { guid: string; folder: string } | null;
+  superiorLinked?: boolean;
+  superiorRelation?: { returnCode: string; description: string | null } | null;
 }
 
 export async function saveJournal(
@@ -225,13 +227,9 @@ export async function saveJournal(
   // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
   if (journalType) transmitObject.TypeEn = journalType;
 
-  // Superior Item ("Sociální služby <year>") — looked up by name to get its
-  // GUID, then set as the journal's superior.
+  // Superior Item ("Sociální služby <year>") is a yearly Project; look up its
+  // GUID. It's linked as a relation below, not a journal column.
   const superior = await resolveSuperiorItem(session, JOURNAL_DEFAULTS.superiorName(year));
-  if (superior) {
-    transmitObject.Superior_ItemGUID = superior.guid;
-    transmitObject.Superior_FolderName = superior.folder;
-  }
 
   const save = await ewayCall(session, "SaveJournal", {
     transmitObject,
@@ -239,24 +237,41 @@ export async function saveJournal(
   });
   const journalGuid = findGuid(save.raw);
 
-  // Attach the Journal to the chosen contact. eWay models this as a relation
-  // between the Journal and the Contact folders.
+  // Contact Person and Superior Item are both relations, not journal columns.
+  // The eWay folder name for journals is "Journal" (singular); a superior/parent
+  // link uses RelationType "SUPERIORITEM", a plain link uses "GENERAL".
   let contactLinked = false;
   let relation: { returnCode: string; description: string | null } | null = null;
-  if (save.ok && journalGuid && input.contactGuid) {
-    // Per eWay's own library: the relation goes under transmitObject with
-    // PascalCase keys and RelationType "GENERAL".
-    const rel = await ewayCall(session, "SaveRelation", {
-      transmitObject: {
-        ItemGUID1: journalGuid,
-        FolderName1: "Journals",
-        ItemGUID2: input.contactGuid,
-        FolderName2: "Contacts",
-        RelationType: "GENERAL",
-      },
-    });
-    contactLinked = rel.ok;
-    relation = { returnCode: rel.returnCode, description: rel.description };
+  let superiorLinked = false;
+  let superiorRelation: { returnCode: string; description: string | null } | null = null;
+  if (save.ok && journalGuid) {
+    if (input.contactGuid) {
+      const rel = await ewayCall(session, "SaveRelation", {
+        transmitObject: {
+          ItemGUID1: journalGuid,
+          FolderName1: "Journal",
+          ItemGUID2: input.contactGuid,
+          FolderName2: "Contacts",
+          RelationType: "GENERAL",
+        },
+      });
+      contactLinked = rel.ok;
+      relation = { returnCode: rel.returnCode, description: rel.description };
+    }
+    if (superior) {
+      const rel = await ewayCall(session, "SaveRelation", {
+        transmitObject: {
+          ItemGUID1: journalGuid,
+          FolderName1: "Journal",
+          ItemGUID2: superior.guid,
+          FolderName2: superior.folder,
+          RelationType: "SUPERIORITEM",
+          DifferDirection: true,
+        },
+      });
+      superiorLinked = rel.ok;
+      superiorRelation = { returnCode: rel.returnCode, description: rel.description };
+    }
   }
 
   return {
@@ -267,5 +282,7 @@ export async function saveJournal(
     description: save.description,
     relation,
     superior,
+    superiorLinked,
+    superiorRelation,
   };
 }
