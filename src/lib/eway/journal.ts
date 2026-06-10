@@ -142,6 +142,28 @@ export async function searchContacts(
     .map(({ guid, name, email }) => ({ guid, name, email }));
 }
 
+// The Superior Item ("Sociální služby <year>") is another eWay record, so the
+// API needs its GUID, not the numeric id shown in the UI. Look it up by name —
+// it's a yearly Project — falling back to Journals if it isn't a Project.
+async function resolveSuperiorItem(
+  session: string,
+  name: string
+): Promise<{ guid: string; folder: string } | null> {
+  const wanted = name.trim().toLowerCase();
+  for (const [method, folder] of [
+    ["GetProjects", "Projects"],
+    ["GetJournals", "Journals"],
+  ] as const) {
+    const res = await ewayCall(session, method, {});
+    const match = asArray(res.data).find(
+      (i) => str(i, "FileAs")?.trim().toLowerCase() === wanted
+    );
+    const guid = match ? str(match, "ItemGUID") : null;
+    if (guid) return { guid, folder };
+  }
+  return null;
+}
+
 export interface SaveJournalInput {
   contactGuid: string;
   note: string; // transcribed notes -> Poznámka
@@ -199,6 +221,14 @@ export async function saveJournal(
   };
   // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
   if (journalType) transmitObject.TypeEn = journalType;
+
+  // Superior Item ("Sociální služby <year>") — looked up by name to get its
+  // GUID, then set as the journal's superior.
+  const superior = await resolveSuperiorItem(session, JOURNAL_DEFAULTS.superiorName(year));
+  if (superior) {
+    transmitObject.Superior_ItemGUID = superior.guid;
+    transmitObject.Superior_FolderName = superior.folder;
+  }
 
   const save = await ewayCall(session, "SaveJournal", {
     transmitObject,
