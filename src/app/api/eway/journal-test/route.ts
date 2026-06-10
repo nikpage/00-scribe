@@ -3,6 +3,9 @@ import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
 import { saveJournal, searchContacts } from "@/lib/eway/journal";
 import { ewayCall } from "@/lib/eway/client";
 
+// Never cache: each call must actually write + read a fresh record.
+export const dynamic = "force-dynamic";
+
 // GET /api/eway/journal-test?contact=<name> — write ONE real journal using the
 // actual save logic, then read it straight back. Picks the first matching eWay
 // contact (or the first contact at all) so it attaches to a real person.
@@ -48,5 +51,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ usedContact: contact, result, populated });
+  return NextResponse.json(
+    { usedContact: contact, result, populated },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
