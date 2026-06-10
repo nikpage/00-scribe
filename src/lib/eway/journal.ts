@@ -18,6 +18,7 @@ export const JOURNAL_DEFAULTS = {
   cilovaSkupina: "osoba se zdravotním postižením", // _af_79  Cílová skupina
   sorOblastPotreb: "Zajištění kontaktu se společenským prostředím", // _af_105 SOR Oblast potřeb
   oblastDotazu: "SOR", // _af_42  Oblast dotazu
+  type: "SOR", // standard Journal Type (TypeEn, JournalType enum)
   intervencePocet: 1, // af_54
   kontaktPocet: 0, // af_55
   // Superior item (parent), rolls over with the calendar year.
@@ -34,6 +35,9 @@ const ENUM_TYPE_BY_COLUMN = {
   _af_105: "95b3c79d-f482-4276-84e8-34cbc4b79421", // SOR Oblast potřeb
   _af_42: "0611296b-fb1f-423d-b474-f02e22f2f19b", // Oblast dotazu
 } as const;
+
+// The standard Journal "Type" field draws from the JournalType enum.
+const JOURNAL_TYPE_ENUM = "c6773175-a570-4c24-b4d2-a4f6c3d9a64b";
 
 function asArray(data: unknown): Record<string, unknown>[] {
   return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
@@ -77,17 +81,25 @@ async function loadEnumValues(
   return forType;
 }
 
-async function resolveEnumValue(
+async function resolveEnumValueByType(
   session: string,
-  column: keyof typeof ENUM_TYPE_BY_COLUMN,
+  enumTypeGuid: string,
   label: string
 ): Promise<string | null> {
-  const values = await loadEnumValues(session, ENUM_TYPE_BY_COLUMN[column]);
+  const values = await loadEnumValues(session, enumTypeGuid);
   const wanted = label.trim().toLowerCase();
   const match = values.find((v) =>
     ["FileAs", "En", "Cz", "EnumName"].some((k) => str(v, k)?.trim().toLowerCase() === wanted)
   );
   return match ? str(match, "ItemGUID") ?? str(match, "EnumValueGuid") : null;
+}
+
+function resolveEnumValue(
+  session: string,
+  column: keyof typeof ENUM_TYPE_BY_COLUMN,
+  label: string
+): Promise<string | null> {
+  return resolveEnumValueByType(session, ENUM_TYPE_BY_COLUMN[column], label);
 }
 
 export interface ContactOption {
@@ -153,29 +165,37 @@ export async function saveJournal(
   const year = new Date(input.eventStart).getFullYear();
   const subject = input.subject ?? JOURNAL_DEFAULTS.superiorName(year);
 
-  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu] = await Promise.all([
-    resolveEnumValue(session, "af_41", JOURNAL_DEFAULTS.forma),
-    resolveEnumValue(session, "af_50", JOURNAL_DEFAULTS.typKontaktu),
-    resolveEnumValue(session, "_af_79", JOURNAL_DEFAULTS.cilovaSkupina),
-    resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sorOblastPotreb),
-    resolveEnumValue(session, "_af_42", JOURNAL_DEFAULTS.oblastDotazu),
-  ]);
+  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalType] =
+    await Promise.all([
+      resolveEnumValue(session, "af_41", JOURNAL_DEFAULTS.forma),
+      resolveEnumValue(session, "af_50", JOURNAL_DEFAULTS.typKontaktu),
+      resolveEnumValue(session, "_af_79", JOURNAL_DEFAULTS.cilovaSkupina),
+      resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sorOblastPotreb),
+      resolveEnumValue(session, "_af_42", JOURNAL_DEFAULTS.oblastDotazu),
+      resolveEnumValueByType(session, JOURNAL_TYPE_ENUM, JOURNAL_DEFAULTS.type),
+    ]);
 
-  // Additional fields are set as columns directly on the transmit object.
+  // Custom (af_NN) fields live under AdditionalFields, not as top-level columns.
+  const additionalFields: Record<string, unknown> = {
+    af_54: JOURNAL_DEFAULTS.intervencePocet,
+    af_55: JOURNAL_DEFAULTS.kontaktPocet,
+  };
+  if (forma) additionalFields.af_41 = forma;
+  if (typKontaktu) additionalFields.af_50 = typKontaktu;
+  if (cilovaSkupina) additionalFields._af_79 = cilovaSkupina;
+  if (sorOblast) additionalFields._af_105 = sorOblast;
+  if (oblastDotazu) additionalFields._af_42 = oblastDotazu;
+
   const transmitObject: Record<string, unknown> = {
     FileAs: subject,
     Subject: subject,
     Note: input.note,
     EventStart: input.eventStart,
     EventEnd: input.eventEnd,
-    af_54: JOURNAL_DEFAULTS.intervencePocet,
-    af_55: JOURNAL_DEFAULTS.kontaktPocet,
+    AdditionalFields: additionalFields,
   };
-  if (forma) transmitObject.af_41 = forma;
-  if (typKontaktu) transmitObject.af_50 = typKontaktu;
-  if (cilovaSkupina) transmitObject._af_79 = cilovaSkupina;
-  if (sorOblast) transmitObject._af_105 = sorOblast;
-  if (oblastDotazu) transmitObject._af_42 = oblastDotazu;
+  // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
+  if (journalType) transmitObject.TypeEn = journalType;
 
   const save = await ewayCall(session, "SaveJournal", {
     transmitObject,
