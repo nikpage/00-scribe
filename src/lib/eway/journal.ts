@@ -210,13 +210,16 @@ export async function saveJournal(
   // between the Journal and the Contact folders.
   let contactLinked = false;
   if (save.ok && journalGuid && input.contactGuid) {
+    // Per eWay's own library: the relation goes under transmitObject with
+    // PascalCase keys and RelationType "GENERAL".
     const rel = await ewayCall(session, "SaveRelation", {
-      itemGuid1: journalGuid,
-      folderName1: "Journals",
-      itemGuid2: input.contactGuid,
-      folderName2: "Contacts",
-      relationType: "GENERAL_RELATION",
-      differDirection: true,
+      transmitObject: {
+        ItemGUID1: journalGuid,
+        FolderName1: "Journals",
+        ItemGUID2: input.contactGuid,
+        FolderName2: "Contacts",
+        RelationType: "GENERAL",
+      },
     });
     contactLinked = rel.ok;
   }
