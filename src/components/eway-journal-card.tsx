@@ -105,6 +105,7 @@ export function EwayJournalCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contactGuid: picked.guid,
+          contactName: picked.name,
           note,
           eventStart: start.toISOString(),
         }),

@@ -35,6 +35,17 @@ Consider these quality indicators:
 
 Return ONLY valid JSON, no markdown fences or extra text.`;
 
+// A one-line summary for the eWay Journal subject, e.g. "Koláček: <phrase>".
+// Czech, no trailing punctuation, kept short so it fits the Subject field.
+export async function summarizeBrief(text: string): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const result = await model.generateContent([
+    "Shrň následující poznámku ze sociální práce do JEDNÉ krátké fráze (max ~8 slov), česky. Vrať pouze tu frázi, bez uvozovek a bez tečky na konci.",
+    `\n\n${text}`,
+  ]);
+  return result.response.text().trim().replace(/^["']+|["'.]+$/g, "");
+}
+
 export async function analyzeTranscript(
   utterances: { speaker: string; text: string }[],
   speakers: Record<string, string>
