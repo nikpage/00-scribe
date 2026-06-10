@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
-import { searchContacts } from "@/lib/eway/journal";
+import { getClients, filterClients, type ContactOption } from "@/lib/eway/journal";
 
-// GET /api/eway/contacts?q=<name> — search the worker's eWay contacts by name
-// so the journal screen can offer a "type a name, pick the right one" picker.
+// GET /api/eway/contacts?q=<name> — search the worker's eWay clients by name.
+//
+// eWay is slow, so we pull the full client list once per worker and cache it for
+// a few minutes; each keystroke filters that cached list locally instead of
+// hitting eWay again.
+const TTL_MS = 5 * 60 * 1000;
+const cache = new Map<string, { clients: ContactOption[]; expires: number }>();
+
 export async function GET(request: Request) {
   const sess = await getEwaySessionForCurrentUser();
   if (!sess.ok) return NextResponse.json({ error: sess.error }, { status: sess.status });
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") ?? "";
+  const refresh = searchParams.get("refresh") === "1";
 
   try {
-    const contacts = await searchContacts(sess.session, q);
-    return NextResponse.json({ contacts });
+    let entry = cache.get(sess.userId);
+    if (refresh || !entry || entry.expires < Date.now()) {
+      entry = { clients: await getClients(sess.session), expires: Date.now() + TTL_MS };
+      cache.set(sess.userId, entry);
+    }
+    return NextResponse.json(
+      { contacts: filterClients(entry.clients, q) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Contact search failed" },

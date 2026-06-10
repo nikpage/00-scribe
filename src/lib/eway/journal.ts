@@ -123,16 +123,11 @@ function isClient(c: Record<string, unknown>): boolean {
   return !!title && fold(title).includes("klient");
 }
 
-// Pull contacts so the worker can search by name. We fetch the contact list and
-// filter here: only clients (job title contains "klient"), then every word typed
-// (in any order, accent-free) must appear in the contact's first/last/FileAs.
-// The display name shows surname + first name so two "Koláček"s are distinct.
-export async function searchContacts(
-  session: string,
-  query: string
-): Promise<ContactOption[]> {
+// Pull the full client list from eWay (one slow call). Only clients (job title
+// contains "klient"). Cache this and filter locally rather than calling eWay on
+// every keystroke. The display name is "Surname, First" so duplicates are clear.
+export async function getClients(session: string): Promise<ContactOption[]> {
   const res = await ewayCall(session, "GetContacts", {});
-  const tokens = fold(query).split(/\s+/).filter(Boolean);
   return asArray(res.data)
     .filter(isClient)
     .map((c) => {
@@ -140,16 +135,24 @@ export async function searchContacts(
       const last = str(c, "LastName") ?? "";
       const fileAs = str(c, "FileAs") ?? "";
       const name = last && first ? `${last}, ${first}` : fileAs || last || first;
-      return {
-        guid: str(c, "ItemGUID") ?? "",
-        name,
-        email: str(c, "Email1Address"),
-        haystack: fold(`${fileAs} ${first} ${last}`),
-      };
+      return { guid: str(c, "ItemGUID") ?? "", name, email: str(c, "Email1Address") };
     })
-    .filter((c) => c.guid && c.name && tokens.every((t) => c.haystack.includes(t)))
-    .slice(0, 50)
-    .map(({ guid, name, email }) => ({ guid, name, email }));
+    .filter((c) => c.guid && c.name);
+}
+
+// Filter an already-loaded client list by a typed query: every word (in any
+// order, accent-free) must appear in the name. Cheap, runs locally.
+export function filterClients(clients: ContactOption[], query: string): ContactOption[] {
+  const tokens = fold(query).split(/\s+/).filter(Boolean);
+  const matched = tokens.length
+    ? clients.filter((c) => tokens.every((t) => fold(c.name).includes(t)))
+    : clients;
+  return matched.slice(0, 50);
+}
+
+// Convenience: load + filter in one go (used where caching isn't set up).
+export async function searchContacts(session: string, query: string): Promise<ContactOption[]> {
+  return filterClients(await getClients(session), query);
 }
 
 // The Superior Item ("Sociální služby <year>") is another eWay record, so the
