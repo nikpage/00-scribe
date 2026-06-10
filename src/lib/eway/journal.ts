@@ -259,13 +259,15 @@ export async function saveJournal(
   let superiorRelation: { returnCode: string; description: string | null } | null = null;
   if (save.ok && journalGuid) {
     if (input.contactGuid) {
+      // RelationType "CONTACT" is what populates the journal's Contact Person
+      // field; "GENERAL" only makes a loose link that leaves the field blank.
       const rel = await ewayCall(session, "SaveRelation", {
         transmitObject: {
           ItemGUID1: journalGuid,
           FolderName1: "Journal",
           ItemGUID2: input.contactGuid,
           FolderName2: "Contacts",
-          RelationType: "GENERAL",
+          RelationType: "CONTACT",
         },
       });
       contactLinked = rel.ok;
