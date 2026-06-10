@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
 import { saveJournal, searchContacts } from "@/lib/eway/journal";
+import { summarizeBrief } from "@/lib/analysis/gemini";
 import { ewayCall } from "@/lib/eway/client";
 
 // Never cache: each call must actually write + read a fresh record.
@@ -24,11 +25,24 @@ export async function GET(request: Request) {
   const contact = contacts[0];
 
   const now = new Date();
+  const testNote =
+    "Klient přišel na schůzku, řešili jsme bydlení a dávky. Domluven další kontakt. (SCRIBE TEST — delete me)";
+
+  // Probe the AI summary directly so we see whether it works or why it fails,
+  // instead of it silently falling back to just the name inside saveJournal.
+  let summaryProbe: { ok: boolean; summary?: string; error?: string };
+  try {
+    summaryProbe = { ok: true, summary: await summarizeBrief(testNote) };
+  } catch (err) {
+    summaryProbe = { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  const geminiKeyPresent = !!process.env.GEMINI_API_KEY;
+
   // No explicit subject -> exercises the real "<last name>: <AI summary>" path.
   const result = await saveJournal(sess.session, {
     contactGuid: contact.guid,
     contactName: contact.name,
-    note: "Klient přišel na schůzku, řešili jsme bydlení a dávky. Domluven další kontakt. (SCRIBE TEST — delete me)",
+    note: testNote,
     eventStart: now.toISOString(),
     eventEnd: now.toISOString(),
   });
@@ -52,7 +66,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(
-    { usedContact: contact, result, populated },
+    { usedContact: contact, geminiKeyPresent, summaryProbe, result, populated },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }
