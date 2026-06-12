@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
+import { useEwayAttention } from "@/components/app-shell";
 
 interface ContactOption {
   guid: string;
@@ -34,6 +35,8 @@ export function EwayJournalCard({
   initialContactName,
 }: EwayJournalCardProps) {
   const { lang, t } = useLang();
+  const ewayAttention = useEwayAttention();
+  const [notConnected, setNotConnected] = useState(false);
 
   // Contact: pre-selected from the record screen when we have its GUID.
   const seededContact: ContactOption | null = initialContactGuid
@@ -68,6 +71,16 @@ export function EwayJournalCard({
       setSearching(true);
       try {
         const res = await fetch(`/api/eway/contacts?q=${encodeURIComponent(query)}`);
+        if (!active) return;
+        // 404 = no eWay account connected. Point the worker at the connect screen.
+        if (res.status === 404) {
+          setNotConnected(true);
+          ewayAttention.flag();
+          setResults([]);
+          setOpen(false);
+          return;
+        }
+        setNotConnected(false);
         const data = await res.json();
         if (!active) return;
         setResults(Array.isArray(data.contacts) ? data.contacts : []);
@@ -114,6 +127,12 @@ export function EwayJournalCard({
           eventStart: start.toISOString(),
         }),
       });
+      if (res.status === 404) {
+        setNotConnected(true);
+        ewayAttention.flag();
+        setStatus({ ok: false, msg: t("ewayNotConnectedHint") });
+        return;
+      }
       const data = await res.json();
       if (res.ok && data.ok) {
         setStatus({ ok: true, msg: t("ewayJournalSaved") });
@@ -173,6 +192,9 @@ export function EwayJournalCard({
               </li>
             ))}
           </ul>
+        )}
+        {notConnected && (
+          <p className="mt-1 text-xs text-destructive">{t("ewayNotConnectedHint")}</p>
         )}
       </div>
 

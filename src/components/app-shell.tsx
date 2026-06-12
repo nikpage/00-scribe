@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useLang } from "@/hooks/use-lang";
@@ -22,6 +22,17 @@ export function useAppUser(): AppUser {
   const u = useContext(UserContext);
   if (!u) throw new Error("useAppUser must be used inside AppShell");
   return u;
+}
+
+// Lets any screen flag that an eWay action (pulling client names, saving to
+// eWay) failed because no account is connected. When flagged, the eWay link in
+// the nav blinks to point the worker at the connect screen.
+type EwayAttention = { needs: boolean; flag: () => void; clear: () => void };
+const noopAttention: EwayAttention = { needs: false, flag: () => {}, clear: () => {} };
+const EwayAttentionContext = createContext<EwayAttention>(noopAttention);
+
+export function useEwayAttention(): EwayAttention {
+  return useContext(EwayAttentionContext);
 }
 
 type NavItem = { href: string; label: TranslationKey; icon: React.ReactNode };
@@ -81,6 +92,11 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
   const router = useRouter();
   const supabase = createClient();
   const [locked, setLocked] = useState(false);
+  const [needsEway, setNeedsEway] = useState(false);
+  const ewayAttention = useMemo<EwayAttention>(
+    () => ({ needs: needsEway, flag: () => setNeedsEway(true), clear: () => setNeedsEway(false) }),
+    [needsEway],
+  );
 
   const items = user.isManager ? [...baseItems, managerItem] : baseItems;
 
@@ -95,6 +111,7 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
 
   return (
     <UserContext.Provider value={user}>
+     <EwayAttentionContext.Provider value={ewayAttention}>
      <IdleProvider onTimeout={() => setLocked(true)}>
       <ReauthModal open={locked} onSuccess={() => setLocked(false)} />
       <div className="min-h-screen bg-background">
@@ -128,12 +145,14 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
               <a
                 href="/settings/eway"
                 className={`block rounded-lg px-3 py-2 text-sm ${
-                  isActive("/settings")
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted"
+                  needsEway
+                    ? "animate-pulse bg-primary/10 text-primary ring-1 ring-primary"
+                    : isActive("/settings")
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {t("settings")}
+                {t("eway")}
               </a>
               <button
                 onClick={logout}
@@ -149,8 +168,13 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
               <h1 className="font-bold">{t("appName")}</h1>
               <div className="flex items-center gap-3">
                 <LangToggle lang={lang} onSwitch={switchLang} />
-                <a href="/settings/eway" className="text-sm text-muted-foreground">
-                  {t("settings")}
+                <a
+                  href="/settings/eway"
+                  className={`text-sm ${
+                    needsEway ? "animate-pulse font-semibold text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {t("eway")}
                 </a>
                 <button onClick={logout} className="text-sm text-muted-foreground">
                   {t("logout")}
@@ -179,6 +203,7 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
         </nav>
       </div>
      </IdleProvider>
+     </EwayAttentionContext.Provider>
     </UserContext.Provider>
   );
 }

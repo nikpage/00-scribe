@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
+import { useEwayAttention } from "@/components/app-shell";
 
 type Connection = {
   username: string;
@@ -11,8 +13,11 @@ type Connection = {
   updated_at: string;
 };
 
-export default function EwaySettingsPage() {
+function EwaySettings() {
   const { lang, t } = useLang();
+  const router = useRouter();
+  const onboarding = useSearchParams().get("onboarding") === "1";
+  const ewayAttention = useEwayAttention();
   const [connection, setConnection] = useState<Connection | null | undefined>(undefined);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +37,8 @@ export default function EwaySettingsPage() {
 
   useEffect(() => {
     refresh();
+    // Landing on the connect screen answers the nav blink — turn it off.
+    ewayAttention.clear();
   }, []);
 
   async function handleConnect(e: React.FormEvent) {
@@ -110,6 +117,12 @@ export default function EwaySettingsPage() {
           <h1 className="text-2xl font-bold">{t("ewayConnectTitle")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("ewayConnectDesc")}</p>
         </div>
+
+        {onboarding && (
+          <p className="rounded-lg border border-border bg-muted p-3 text-sm">
+            {t("ewayOnboardingDesc")}
+          </p>
+        )}
 
         {connection === undefined && (
           <div className="text-muted-foreground">{t("loading")}</div>
@@ -205,7 +218,24 @@ export default function EwaySettingsPage() {
         {info && !error && (
           <div className="rounded-lg border border-border bg-muted p-3 text-sm">{info}</div>
         )}
+
+        {onboarding && (
+          <button
+            onClick={() => router.push("/queue")}
+            className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted"
+          >
+            {connection ? t("continue") : t("skipForNow")}
+          </button>
+        )}
       </div>
     </main>
+  );
+}
+
+export default function EwaySettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <EwaySettings />
+    </Suspense>
   );
 }

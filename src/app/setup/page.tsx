@@ -63,7 +63,7 @@ export default function SetupPage() {
         throw new Error(data.error || t("authFailed"));
       }
 
-      router.push("/");
+      router.push("/settings/eway?onboarding=1");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("authFailed"));
       setSaving(false);
@@ -114,7 +114,7 @@ export default function SetupPage() {
                 {saving ? t("registering") : t("registerWithPasskey")}
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/settings/eway?onboarding=1")}
                 disabled={saving}
                 className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
               >

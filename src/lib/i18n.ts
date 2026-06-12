@@ -185,6 +185,11 @@ const translations = {
     postSessionNotesBadge: "Poznámky",
     // eWay connection
     settings: "Nastavení",
+    eway: "eWay",
+    ewayOnboardingDesc:
+      "Připojte svůj eWay účet. Můžete to udělat i později, ale dokud nepřipojíte, nebudete moci načítat jména klientů z eWay ani ukládat poznámky zpět do eWay.",
+    ewayNotConnectedHint:
+      "Nejprve připojte eWay. Klepněte na „eWay“ v menu a zadejte své přihlašovací údaje.",
     ewayConnectTitle: "Připojit eWay-CRM",
     ewayConnectDesc:
       "Vaše přihlašovací údaje k eWay. Po připojení budou poznámky odesílány do eWay pod vaším jménem.",
@@ -395,6 +400,11 @@ const translations = {
     recordPostSessionNotes: "Record notes",
     postSessionNotesBadge: "Notes",
     settings: "Settings",
+    eway: "eWay",
+    ewayOnboardingDesc:
+      "Connect your eWay account. You can do this later, but until you do you won't be able to pull client names from eWay or save notes back to eWay.",
+    ewayNotConnectedHint:
+      'Connect eWay first. Tap "eWay" in the menu to enter your login.',
     ewayConnectTitle: "Connect eWay-CRM",
     ewayConnectDesc:
       "Your eWay login. Once connected, post-session notes will be sent to eWay as you.",
