@@ -4,22 +4,28 @@
 // VONAGE_SMS_TEMPLATE_ID (local env + Vercel) so login/route reads use it.
 //
 // Usage: node scripts/setup-vonage-webotp-template.mjs
-// Requires VONAGE_API_KEY / VONAGE_API_SECRET in the environment, and
-// WEBOTP_DOMAIN (defaults to 00-scribe.vercel.app — set this to your real
-// production domain if different).
+// Template management only accepts JWT Bearer auth (Basic auth with the
+// account API key/secret 401s on these endpoints), so this needs
+// VONAGE_LIGA_SCRIBE_APPLICATION_ID + VONAGE_PRIVATE_KEY — the Vonage
+// Application's ID and private key, not the account API key/secret used
+// elsewhere in this repo. Also requires WEBOTP_DOMAIN (defaults to
+// 00-scribe.vercel.app — set this to your real production domain if
+// different).
 
 import { Vonage } from "@vonage/server-sdk";
 
-const apiKey = process.env.VONAGE_API_KEY;
-const apiSecret = process.env.VONAGE_API_SECRET;
+const applicationId = process.env.VONAGE_LIGA_SCRIBE_APPLICATION_ID;
+const privateKey = process.env.VONAGE_PRIVATE_KEY;
 const domain = process.env.WEBOTP_DOMAIN || "00-scribe.vercel.app";
 
-if (!apiKey || !apiSecret) {
-  console.error("Set VONAGE_API_KEY and VONAGE_API_SECRET first.");
+if (!applicationId || !privateKey) {
+  console.error(
+    "Set VONAGE_LIGA_SCRIBE_APPLICATION_ID and VONAGE_PRIVATE_KEY first (JWT auth is required for template management)."
+  );
   process.exit(1);
 }
 
-const vonage = new Vonage({ apiKey, apiSecret });
+const vonage = new Vonage({ applicationId, privateKey });
 
 const template = await vonage.verify2.createTemplate({
   name: "scribe-webotp-sms",
