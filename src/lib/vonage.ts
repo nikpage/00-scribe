@@ -22,11 +22,15 @@ export function toE164(phone: string): string {
 }
 
 export async function startPhoneVerification(phone: string): Promise<string> {
+  const templateId = process.env.VONAGE_SMS_TEMPLATE_ID;
   const { requestId } = await getClient().verify2.newRequest({
     brand: process.env.VONAGE_BRAND_NAME || "Scribe",
     workflow: [{ channel: Channels.SMS, to: toE164(phone) }],
     codeLength: 6,
     channelTimeout: 300,
+    // Without this, the SMS body is Vonage's default text and WebOTP
+    // auto-fill won't fire — see scripts/setup-vonage-webotp-template.mjs.
+    ...(templateId ? { templateId } : {}),
   });
   return requestId;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -32,6 +32,30 @@ export default function AuthPage() {
   const router = useRouter();
   const { lang, switchLang, t } = useLang();
   const supabase = createClient();
+
+  // WebOTP: auto-fill the code from the incoming SMS without the user
+  // typing it, on browsers/OSes that support it (mainly Android Chrome).
+  // Requires the SMS body to end with "@<domain> #<code>" — see the Vonage
+  // template setup needed for this to actually fire.
+  useEffect(() => {
+    if (mode !== "phone" || phoneStep !== "code") return;
+    if (!("OTPCredential" in window)) return;
+
+    const controller = new AbortController();
+    navigator.credentials
+      .get({
+        // @ts-expect-error — OTPCredential isn't in TS's lib.dom yet
+        otp: { transport: ["sms"] },
+        signal: controller.signal,
+      })
+      .then((otp: unknown) => {
+        const value = (otp as { code?: string } | null)?.code;
+        if (value) setCode(value);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [mode, phoneStep]);
 
   async function signInWithPasskey() {
     setError("");
@@ -159,6 +183,7 @@ export default function AuthPage() {
           <form onSubmit={handleSendCode} className="space-y-3">
             <input
               type="tel"
+              autoComplete="tel"
               placeholder={t("yourPhone")}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -183,6 +208,7 @@ export default function AuthPage() {
             {isNewUser && (
               <input
                 type="email"
+                autoComplete="email"
                 placeholder={t("emailForNewAccount")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -193,6 +219,7 @@ export default function AuthPage() {
             <input
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
               placeholder={t("enterCode")}
               value={code}
               onChange={(e) => setCode(e.target.value)}
@@ -224,6 +251,7 @@ export default function AuthPage() {
           <form onSubmit={handlePasswordSignIn} className="space-y-3">
             <input
               type="email"
+              autoComplete="email"
               placeholder={t("yourEmail")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -232,6 +260,7 @@ export default function AuthPage() {
             />
             <input
               type="password"
+              autoComplete="current-password"
               placeholder={t("yourPassword")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

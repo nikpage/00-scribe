@@ -155,6 +155,7 @@ export default function SetupPage() {
             <form onSubmit={handleSetPassword} className="space-y-4">
               <input
                 type="password"
+                autoComplete="new-password"
                 placeholder={t("yourPassword")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
