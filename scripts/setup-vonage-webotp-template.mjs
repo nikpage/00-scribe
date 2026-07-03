@@ -7,20 +7,18 @@
 // The Templates API requires JWT auth (application ID + private key), not
 // the API key/secret used everywhere else — so this needs both:
 //   VONAGE_LIGA_SCRIBE_APPLICATION_ID
-//   VONAGE_LIGA_SCRIBE_PRIVATE_KEY (contents of the downloaded private.key)
+//   VONAGE_PRIVATE_KEY (contents of the downloaded private.key)
 // plus WEBOTP_DOMAIN (defaults to 00-scribe.vercel.app — set this to your
 // real production domain if different).
 
 import { Vonage } from "@vonage/server-sdk";
 
 const applicationId = process.env.VONAGE_LIGA_SCRIBE_APPLICATION_ID;
-const privateKey = process.env.VONAGE_LIGA_SCRIBE_PRIVATE_KEY;
+const privateKey = process.env.VONAGE_PRIVATE_KEY;
 const domain = process.env.WEBOTP_DOMAIN || "00-scribe.vercel.app";
 
 if (!applicationId || !privateKey) {
-  console.error(
-    "Set VONAGE_LIGA_SCRIBE_APPLICATION_ID and VONAGE_LIGA_SCRIBE_PRIVATE_KEY first."
-  );
+  console.error("Set VONAGE_LIGA_SCRIBE_APPLICATION_ID and VONAGE_PRIVATE_KEY first.");
   process.exit(1);
 }
 
