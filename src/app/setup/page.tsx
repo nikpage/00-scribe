@@ -9,13 +9,32 @@ import { LangToggle } from "@/components/lang-toggle";
 
 export default function SetupPage() {
   const { lang, switchLang, t } = useLang();
-  const [step, setStep] = useState<"name" | "passkey">("name");
+  const [step, setStep] = useState<"name" | "passkey" | "password">("name");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const supabase = createClient();
   const router = useRouter();
+
+  function finishOnboarding() {
+    router.push("/settings/eway?onboarding=1");
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+
+    const { error } = await supabase.auth.updateUser({ password });
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    finishOnboarding();
+  }
 
   async function handleName(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +45,8 @@ export default function SetupPage() {
     } = await supabase.auth.getUser();
 
     if (user) {
-      await supabase.from("profiles").upsert({ id: user.id, name });
+      const phone = (user.user_metadata as { phone?: string } | null)?.phone;
+      await supabase.from("profiles").upsert({ id: user.id, name, ...(phone ? { phone } : {}) });
       setEmail(user.email ?? "");
     }
 
@@ -63,7 +83,8 @@ export default function SetupPage() {
         throw new Error(data.error || t("authFailed"));
       }
 
-      router.push("/settings/eway?onboarding=1");
+      setStep("password");
+      setSaving(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("authFailed"));
       setSaving(false);
@@ -114,13 +135,49 @@ export default function SetupPage() {
                 {saving ? t("registering") : t("registerWithPasskey")}
               </button>
               <button
-                onClick={() => router.push("/settings/eway?onboarding=1")}
+                onClick={() => setStep("password")}
                 disabled={saving}
                 className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
               >
                 {t("skipForNow")}
               </button>
             </div>
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+          </>
+        )}
+
+        {step === "password" && (
+          <>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">{t("setPasswordTitle")}</h1>
+              <p className="mt-2 text-muted-foreground">{t("setPasswordDesc")}</p>
+            </div>
+            <form onSubmit={handleSetPassword} className="space-y-4">
+              <input
+                type="password"
+                placeholder={t("yourPassword")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+              >
+                {saving ? t("saving") : t("continue")}
+              </button>
+              <button
+                type="button"
+                onClick={finishOnboarding}
+                disabled={saving}
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {t("skipForNow")}
+              </button>
+            </form>
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
           </>
         )}
