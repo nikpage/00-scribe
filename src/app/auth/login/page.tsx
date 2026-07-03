@@ -80,7 +80,7 @@ export default function AuthPage() {
         body: JSON.stringify({ phone: normalized }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("authFailed"));
+      if (!res.ok) throw new Error(res.status === 429 ? t("tooManyRequests") : data.error || t("authFailed"));
 
       setRequestId(data.requestId);
       setIsNewUser(data.isNewUser);
