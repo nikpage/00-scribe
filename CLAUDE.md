@@ -17,7 +17,8 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 - **Next.js 16 (App Router)**, React, TypeScript, Tailwind
 - **Supabase** — Postgres + auth (cookie sessions via `@supabase/ssr`) + Realtime.
   Tables: `profiles`, `clients`, `recordings`, `eway_credentials`, audit log.
-- **Auth** — WebAuthn passkeys (`@simplewebauthn`) for the phone; magic link for cross-device.
+- **Auth** — WebAuthn passkeys (`@simplewebauthn`) for the phone; magic link for cross-device;
+  SMS OTP via Vonage Verify (`src/lib/vonage.ts`) with a password fallback.
 - **Transcription** — provider-swappable behind `src/lib/transcription/index.ts`
   (AssemblyAI + Speechmatics). Results processed in `process-result.ts`.
 - **Analysis** — Google Gemini (`src/lib/analysis/gemini.ts`) for summaries / action items.
@@ -78,6 +79,14 @@ the `useEwayAttention` flag/clear calls, and the i18n keys.
   screens are still English-only. Add both `cs` and `en` keys for any new string.
 - Client components reading search params (e.g. `?onboarding=1`) must be wrapped in
   `<Suspense>` or the production build fails.
+- **Vonage WebOTP auto-fill is parked, blocked on Vonage support.** SMS OTP login
+  works fully without it. `scripts/setup-vonage-webotp-template.mjs` creates the SMS
+  template needed for Android auto-fill, but `POST /v2/verify/templates` 403s —
+  custom Verify templates are disabled by default and only enabled per-account by
+  Vonage support/account manager, not a self-service or paid-tier toggle. Needs a
+  support ticket asking to enable "custom Verify v2 template management" before this
+  script can succeed. Auth itself is fine (JWT via `VONAGE_LIGA_SCRIBE_APPLICATION_ID`
+  + `VONAGE_PRIVATE_KEY`, not the account API key/secret).
 
 ## Conventions
 
