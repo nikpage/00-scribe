@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { startRegistration } from "@simplewebauthn/browser";
 import { createClient } from "@/lib/supabase/client";
+import { setPasskeyEnrolled } from "@/lib/passkey";
 import { useRouter } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
@@ -100,6 +101,7 @@ export default function SetupPage() {
         throw new Error(data.error || t("authFailed"));
       }
 
+      setPasskeyEnrolled(true);
       setStep("password");
       setSaving(false);
     } catch (err) {

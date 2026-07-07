@@ -5,6 +5,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { setRememberDevice } from "@/lib/remember-device";
+import { getPasskeyEnrolled, setPasskeyEnrolled } from "@/lib/passkey";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 
@@ -32,9 +33,16 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState<"passkey" | "phone" | "password" | "reset" | null>(null);
+  // Only offer biometric sign-in on a device that actually enrolled a passkey,
+  // so a fresh phone / empty database never surfaces stale OS credentials.
+  const [passkeyEnrolled, setPasskeyEnrolledState] = useState(false);
   const router = useRouter();
   const { lang, switchLang, t } = useLang();
   const supabase = createClient();
+
+  useEffect(() => {
+    setPasskeyEnrolledState(getPasskeyEnrolled());
+  }, []);
 
   // WebOTP: auto-fill the code from the incoming SMS without the user
   // typing it, on browsers/OSes that support it (mainly Android Chrome).
@@ -88,7 +96,14 @@ export default function AuthPage() {
 
       router.push("/queue");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("authFailed"));
+      const message = err instanceof Error ? err.message : t("authFailed");
+      // The server doesn't know this device credential (e.g. the account was
+      // deleted) — stop offering biometric until it's re-enrolled.
+      if (message === "Credential not found") {
+        setPasskeyEnrolled(false);
+        setPasskeyEnrolledState(false);
+      }
+      setError(message);
     } finally {
       setLoading(null);
     }
@@ -187,20 +202,24 @@ export default function AuthPage() {
         <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
         <h1 className="text-2xl font-bold text-center">{t("appName")}</h1>
 
-        {/* Passkey — fast path for returning users on this device */}
-        <button
-          onClick={signInWithPasskey}
-          disabled={loading !== null}
-          className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
-        >
-          {loading === "passkey" ? t("authenticating") : t("signInWithPasskey")}
-        </button>
+        {/* Biometric — only on a device that has actually enrolled a passkey */}
+        {passkeyEnrolled && (
+          <>
+            <button
+              onClick={signInWithPasskey}
+              disabled={loading !== null}
+              className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+            >
+              {loading === "passkey" ? t("authenticating") : t("signInWithPasskey")}
+            </button>
 
-        <div className="relative flex items-center gap-3">
-          <div className="flex-1 border-t border-border" />
-          <span className="text-sm text-muted-foreground">{t("or")}</span>
-          <div className="flex-1 border-t border-border" />
-        </div>
+            <div className="relative flex items-center gap-3">
+              <div className="flex-1 border-t border-border" />
+              <span className="text-sm text-muted-foreground">{t("or")}</span>
+              <div className="flex-1 border-t border-border" />
+            </div>
+          </>
+        )}
 
         {mode === "phone" && phoneStep === "phone" && (
           <form onSubmit={handleSendCode} className="space-y-3">
