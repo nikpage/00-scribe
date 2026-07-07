@@ -38,19 +38,36 @@ export default function SetupPage() {
 
   async function handleName(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setSaving(true);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      const phone = (user.user_metadata as { phone?: string } | null)?.phone;
-      await supabase.from("profiles").upsert({ id: user.id, name, ...(phone ? { phone } : {}) });
-      setEmail(user.email ?? "");
+    // No live session means the profile write would fail silently and drop the
+    // user straight back here — surface it instead of looping.
+    if (!user) {
+      setSaving(false);
+      setError(t("sessionExpired"));
+      return;
     }
 
+    const phone = (user.user_metadata as { phone?: string } | null)?.phone;
+    const { error: upsertError } = await supabase
+      .from("profiles")
+      .upsert({ id: user.id, name, ...(phone ? { phone } : {}) });
+
     setSaving(false);
+
+    // If the profile didn't save, the app gate would bounce us back to this
+    // screen forever. Stop here and show why rather than advancing blindly.
+    if (upsertError) {
+      setError(upsertError.message);
+      return;
+    }
+
+    setEmail(user.email ?? "");
     setStep("passkey");
   }
 
@@ -96,7 +113,7 @@ export default function SetupPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
 
-        {step === "name" ? (
+        {step === "name" && (
           <>
             <div className="text-center">
               <h1 className="text-2xl font-bold">{t("welcomeTitle")}</h1>
@@ -120,7 +137,9 @@ export default function SetupPage() {
               </button>
             </form>
           </>
-        ) : (
+        )}
+
+        {step === "passkey" && (
           <>
             <div className="text-center">
               <h1 className="text-2xl font-bold">{t("passkeyOfferTitle")}</h1>
