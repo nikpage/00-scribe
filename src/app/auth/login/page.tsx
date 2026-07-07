@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { setRememberDevice } from "@/lib/remember-device";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 
@@ -27,8 +28,10 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [isNewUser, setIsNewUser] = useState(false);
   const [requestId, setRequestId] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState<"passkey" | "phone" | "password" | null>(null);
+  const [info, setInfo] = useState("");
+  const [loading, setLoading] = useState<"passkey" | "phone" | "password" | "reset" | null>(null);
   const router = useRouter();
   const { lang, switchLang, t } = useLang();
   const supabase = createClient();
@@ -147,6 +150,7 @@ export default function AuthPage() {
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setInfo("");
     setLoading("password");
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -154,8 +158,27 @@ export default function AuthPage() {
       setError(t("invalidCredentials"));
       setLoading(null);
     } else {
+      setRememberDevice(rememberMe);
       router.push("/");
     }
+  }
+
+  async function handleForgotPassword() {
+    setError("");
+    setInfo("");
+    if (!email) {
+      setError(t("enterEmailFirst"));
+      return;
+    }
+    setLoading("reset");
+    // Redirect through the auth callback so the recovery code is exchanged for
+    // a session, then land the user on the set-new-password screen.
+    const redirectTo = `${window.location.origin}/auth/callback?next=/auth/reset`;
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    setLoading(null);
+    // Always show the same message whether or not the email exists — don't leak
+    // which addresses have accounts.
+    setInfo(t("resetEmailSent"));
   }
 
   return (
@@ -267,6 +290,15 @@ export default function AuthPage() {
               required
               className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
             />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              {t("rememberMe")}
+            </label>
             <button
               type="submit"
               disabled={loading !== null}
@@ -274,8 +306,18 @@ export default function AuthPage() {
             >
               {loading === "password" ? t("signingIn") : t("signIn")}
             </button>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={loading !== null}
+              className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              {loading === "reset" ? t("sendingResetLink") : t("forgotPassword")}
+            </button>
           </form>
         )}
+
+        {info && <p className="text-sm text-muted-foreground text-center">{info}</p>}
 
         <button
           type="button"

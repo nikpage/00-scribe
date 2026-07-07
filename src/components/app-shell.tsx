@@ -7,6 +7,7 @@ import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 import { IdleProvider } from "@/hooks/use-idle";
 import { ReauthModal } from "@/components/reauth-modal";
+import { getRememberDevice } from "@/lib/remember-device";
 import type { TranslationKey } from "@/lib/i18n";
 
 export type AppUser = {
@@ -112,7 +113,7 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
   return (
     <UserContext.Provider value={user}>
      <EwayAttentionContext.Provider value={ewayAttention}>
-     <IdleProvider onTimeout={() => setLocked(true)}>
+     <IdleProvider onTimeout={() => { if (!getRememberDevice()) setLocked(true); }}>
       <ReauthModal open={locked} onSuccess={() => setLocked(false)} />
       <div className="min-h-screen bg-background">
         <div className="flex">

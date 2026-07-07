@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -7,6 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createSSRClient } from "@/lib/supabase/server";
 
 const rpName = process.env.WEBAUTHN_RP_NAME || "Scribe";
+
+// The challenge is minted server-side and stashed in an httpOnly cookie, then
+// read back on verify — never trusted from the request body.
+const CHALLENGE_COOKIE = "webauthn_reg_challenge";
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,8 +35,9 @@ function getWebAuthnParams(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { step, name, email, credential, challenge: clientChallenge } = body;
+  const { step, name, email, credential } = body;
   const { origin, rpID } = getWebAuthnParams(request);
+  const cookieStore = await cookies();
 
   if (step === "options") {
     const options = await generateRegistrationOptions({
@@ -46,18 +52,31 @@ export async function POST(request: Request) {
       },
     });
 
+    cookieStore.set(CHALLENGE_COOKIE, options.challenge, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 300,
+    });
+
     return NextResponse.json(options);
   }
 
   if (step === "verify") {
-    if (!clientChallenge) {
-      return NextResponse.json({ error: "No challenge provided" }, { status: 400 });
+    const expectedChallenge = cookieStore.get(CHALLENGE_COOKIE)?.value;
+    if (!expectedChallenge) {
+      return NextResponse.json(
+        { error: "Challenge expired, please try again" },
+        { status: 400 }
+      );
     }
+    cookieStore.delete(CHALLENGE_COOKIE);
 
     try {
       const verification = await verifyRegistrationResponse({
         response: credential,
-        expectedChallenge: clientChallenge,
+        expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
       });

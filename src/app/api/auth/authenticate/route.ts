@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createSSRClient } from "@/lib/supabase/server";
+
+// The challenge is minted server-side and stashed in an httpOnly cookie, then
+// read back on verify. Trusting a challenge posted by the browser would let a
+// caller pick their own — defeating the point of the challenge.
+const CHALLENGE_COOKIE = "webauthn_auth_challenge";
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,8 +34,9 @@ function getWebAuthnParams(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { step, credential, challenge: clientChallenge } = body;
+  const { step, credential } = body;
   const { origin, rpID } = getWebAuthnParams(request);
+  const cookieStore = await cookies();
 
   if (step === "options") {
     const options = await generateAuthenticationOptions({
@@ -37,14 +44,28 @@ export async function POST(request: Request) {
       userVerification: "preferred",
     });
 
-    // Return challenge to client — client sends it back in verify step
+    // Remember the challenge server-side; verify reads it back from here.
+    cookieStore.set(CHALLENGE_COOKIE, options.challenge, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 300,
+    });
+
     return NextResponse.json(options);
   }
 
   if (step === "verify") {
-    if (!clientChallenge) {
-      return NextResponse.json({ error: "No challenge provided" }, { status: 400 });
+    const expectedChallenge = cookieStore.get(CHALLENGE_COOKIE)?.value;
+    if (!expectedChallenge) {
+      return NextResponse.json(
+        { error: "Challenge expired, please try again" },
+        { status: 400 }
+      );
     }
+    // One-time use: clear it so a challenge can't be replayed.
+    cookieStore.delete(CHALLENGE_COOKIE);
 
     try {
       const admin = getAdminClient();
@@ -62,7 +83,7 @@ export async function POST(request: Request) {
 
       const verification = await verifyAuthenticationResponse({
         response: credential,
-        expectedChallenge: clientChallenge,
+        expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
         credential: {
