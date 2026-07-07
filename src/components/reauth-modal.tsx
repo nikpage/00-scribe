@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { createClient } from "@/lib/supabase/client";
+import { useAppUser } from "@/components/app-shell";
 import { useLang } from "@/hooks/use-lang";
 
 const MAX_ATTEMPTS = 3;
@@ -18,9 +19,12 @@ export function ReauthModal({
   const { t } = useLang();
   const router = useRouter();
   const supabase = createClient();
+  const user = useAppUser();
   const [verifying, setVerifying] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"passkey" | "password">("passkey");
+  const [password, setPassword] = useState("");
 
   async function logoutAndRedirect() {
     await supabase.auth.signOut();
@@ -68,14 +72,41 @@ export function ReauthModal({
       onSuccess();
       setAttempts(0);
     } catch (err) {
-      const next = attempts + 1;
-      setAttempts(next);
-      setError(err instanceof Error ? err.message : t("authFailed"));
-      if (next >= MAX_ATTEMPTS) {
-        await logoutAndRedirect();
-      }
+      await registerFailure(err instanceof Error ? err.message : t("authFailed"));
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Password unlock for workers who never set up fingerprint/face — otherwise
+  // the lock screen would trap them with no way back in but logging out.
+  async function verifyPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifying(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password,
+      });
+      if (error) {
+        await registerFailure(t("invalidCredentials"));
+        return;
+      }
+      setPassword("");
+      onSuccess();
+      setAttempts(0);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function registerFailure(message: string) {
+    const next = attempts + 1;
+    setAttempts(next);
+    setError(message);
+    if (next >= MAX_ATTEMPTS) {
+      await logoutAndRedirect();
     }
   }
 
@@ -92,13 +123,57 @@ export function ReauthModal({
         )}
 
         <div className="mt-5 flex flex-col gap-2">
-          <button
-            onClick={verify}
-            disabled={verifying}
-            className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
-          >
-            {verifying ? t("authenticating") : t("unlockWithPasskey")}
-          </button>
+          {mode === "passkey" ? (
+            <>
+              <button
+                onClick={verify}
+                disabled={verifying}
+                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+              >
+                {verifying ? t("authenticating") : t("unlockWithPasskey")}
+              </button>
+              <button
+                onClick={() => {
+                  setMode("password");
+                  setError("");
+                }}
+                disabled={verifying}
+                className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {t("usePasswordInstead")}
+              </button>
+            </>
+          ) : (
+            <form onSubmit={verifyPassword} className="flex flex-col gap-2">
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder={t("yourPassword")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+              />
+              <button
+                type="submit"
+                disabled={verifying}
+                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+              >
+                {verifying ? t("signingIn") : t("unlock")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("passkey");
+                  setError("");
+                }}
+                disabled={verifying}
+                className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {t("unlockWithPasskey")}
+              </button>
+            </form>
+          )}
           <button
             onClick={logoutAndRedirect}
             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium hover:bg-muted"
