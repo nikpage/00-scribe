@@ -5,13 +5,29 @@ let client: Vonage | null = null;
 
 function getClient(): Vonage {
   if (client) return client;
+
+  // This account authenticates Verify v2 with JWT application credentials
+  // (application id + private key), not the legacy API key/secret. Prefer those;
+  // fall back to key/secret only if that's all that's configured.
+  const applicationId = process.env.VONAGE_LIGA_SCRIBE_APPLICATION_ID;
+  const privateKey = process.env.VONAGE_PRIVATE_KEY;
   const apiKey = process.env.VONAGE_API_KEY;
   const apiSecret = process.env.VONAGE_API_SECRET;
-  if (!apiKey || !apiSecret) {
-    throw new Error("Server misconfigured: VONAGE_API_KEY / VONAGE_API_SECRET not set");
+
+  if (applicationId && privateKey) {
+    // Env vars often store the PEM with escaped newlines — normalize them.
+    client = new Vonage({ applicationId, privateKey: privateKey.replace(/\\n/g, "\n") });
+    return client;
   }
-  client = new Vonage({ apiKey, apiSecret });
-  return client;
+
+  if (apiKey && apiSecret) {
+    client = new Vonage({ apiKey, apiSecret });
+    return client;
+  }
+
+  throw new Error(
+    "Server misconfigured: set VONAGE_LIGA_SCRIBE_APPLICATION_ID + VONAGE_PRIVATE_KEY (or VONAGE_API_KEY + VONAGE_API_SECRET)"
+  );
 }
 
 // E.164 without the leading '+', per Vonage's `to` field requirement.

@@ -30,6 +30,7 @@ export default function AuthPage() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [requestId, setRequestId] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [pwMode, setPwMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState<"passkey" | "phone" | "password" | "reset" | null>(null);
@@ -178,6 +179,35 @@ export default function AuthPage() {
     }
   }
 
+  async function handleCreateAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setLoading("password");
+
+    const res = await fetch("/api/auth/password/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(res.status === 409 ? t("accountExistsSignIn") : data.error || t("authFailed"));
+      setLoading(null);
+      return;
+    }
+
+    // Account created server-side with email confirmed — sign straight in.
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(t("authFailed"));
+      setLoading(null);
+      return;
+    }
+    setRememberDevice(rememberMe);
+    router.push("/");
+  }
+
   async function handleForgotPassword() {
     setError("");
     setInfo("");
@@ -290,7 +320,10 @@ export default function AuthPage() {
         )}
 
         {mode === "password" && (
-          <form onSubmit={handlePasswordSignIn} className="space-y-3">
+          <form
+            onSubmit={pwMode === "signup" ? handleCreateAccount : handlePasswordSignIn}
+            className="space-y-3"
+          >
             <input
               type="email"
               autoComplete="email"
@@ -302,11 +335,12 @@ export default function AuthPage() {
             />
             <input
               type="password"
-              autoComplete="current-password"
+              autoComplete={pwMode === "signup" ? "new-password" : "current-password"}
               placeholder={t("yourPassword")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={pwMode === "signup" ? 8 : undefined}
               className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -323,15 +357,35 @@ export default function AuthPage() {
               disabled={loading !== null}
               className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
             >
-              {loading === "password" ? t("signingIn") : t("signIn")}
+              {pwMode === "signup"
+                ? loading === "password"
+                  ? t("creatingAccount")
+                  : t("createAccount")
+                : loading === "password"
+                  ? t("signingIn")
+                  : t("signIn")}
             </button>
+            {pwMode === "signin" && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading !== null}
+                className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {loading === "reset" ? t("sendingResetLink") : t("forgotPassword")}
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleForgotPassword}
+              onClick={() => {
+                setPwMode(pwMode === "signin" ? "signup" : "signin");
+                setError("");
+                setInfo("");
+              }}
               disabled={loading !== null}
               className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
-              {loading === "reset" ? t("sendingResetLink") : t("forgotPassword")}
+              {pwMode === "signin" ? t("newHereCreate") : t("haveAccountSignIn")}
             </button>
           </form>
         )}
