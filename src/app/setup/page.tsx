@@ -1,113 +1,63 @@
 "use client";
 
 import { useState } from "react";
-import { startRegistration } from "@simplewebauthn/browser";
 import { createClient } from "@/lib/supabase/client";
-import { setPasskeyEnrolled } from "@/lib/passkey";
 import { useRouter } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 
+// Local Czech numbers are typed without a country code; default to it so
+// users don't have to know/type "+420" themselves.
+function normalizePhoneInput(raw: string): string {
+  const digits = raw.replace(/[^\d]/g, "");
+  if (digits.startsWith("420")) return digits;
+  return `420${digits}`;
+}
+
 export default function SetupPage() {
   const { lang, switchLang, t } = useLang();
-  const [step, setStep] = useState<"name" | "passkey" | "password">("name");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const supabase = createClient();
   const router = useRouter();
 
-  function finishOnboarding() {
-    router.push("/settings/eway?onboarding=1");
-  }
-
-  async function handleSetPassword(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSaving(true);
 
-    const { error } = await supabase.auth.updateUser({ password });
-    setSaving(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    finishOnboarding();
-  }
-
-  async function handleName(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSaving(true);
-
-    const {
+    // Identity with no login screen: reuse the device's existing session if it
+    // has one, otherwise silently create an anonymous account. Each device gets
+    // its own real auth user, so per-worker data stays separated with no
+    // password, code, or email step.
+    let {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // No live session means the profile write would fail silently and drop the
-    // user straight back here — surface it instead of looping.
     if (!user) {
-      setSaving(false);
-      setError(t("sessionExpired"));
-      return;
+      const { data, error: signInError } = await supabase.auth.signInAnonymously();
+      if (signInError || !data.user) {
+        setSaving(false);
+        setError(signInError?.message || t("authFailed"));
+        return;
+      }
+      user = data.user;
     }
 
-    const phone = (user.user_metadata as { phone?: string } | null)?.phone;
     const { error: upsertError } = await supabase
       .from("profiles")
-      .upsert({ id: user.id, name, ...(phone ? { phone } : {}) });
+      .upsert({ id: user.id, name, phone: normalizePhoneInput(phone) });
 
     setSaving(false);
 
-    // If the profile didn't save, the app gate would bounce us back to this
-    // screen forever. Stop here and show why rather than advancing blindly.
     if (upsertError) {
       setError(upsertError.message);
       return;
     }
 
-    setEmail(user.email ?? "");
-    setStep("passkey");
-  }
-
-  async function handlePasskey() {
-    setError("");
-    setSaving(true);
-
-    try {
-      const optionsRes = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, step: "options" }),
-      });
-      if (!optionsRes.ok) {
-        const data = await optionsRes.json();
-        throw new Error(data.error || t("authFailed"));
-      }
-      const options = await optionsRes.json();
-      const challenge = options.challenge;
-
-      const credential = await startRegistration({ optionsJSON: options });
-
-      const verifyRes = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, step: "verify", credential, challenge }),
-      });
-      if (!verifyRes.ok) {
-        const data = await verifyRes.json();
-        throw new Error(data.error || t("authFailed"));
-      }
-
-      setPasskeyEnrolled(true);
-      setStep("password");
-      setSaving(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("authFailed"));
-      setSaving(false);
-    }
+    router.push("/settings/eway?onboarding=1");
   }
 
   return (
@@ -115,94 +65,38 @@ export default function SetupPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="flex justify-end"><LangToggle lang={lang} onSwitch={switchLang} /></div>
 
-        {step === "name" && (
-          <>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">{t("welcomeTitle")}</h1>
-              <p className="mt-2 text-muted-foreground">{t("enterName")}</p>
-            </div>
-            <form onSubmit={handleName} className="space-y-4">
-              <input
-                type="text"
-                placeholder={t("fullName")}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
-              >
-                {saving ? t("saving") : t("continue")}
-              </button>
-            </form>
-          </>
-        )}
-
-        {step === "passkey" && (
-          <>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">{t("passkeyOfferTitle")}</h1>
-              <p className="mt-2 text-muted-foreground">{t("passkeyOfferDesc")}</p>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={handlePasskey}
-                disabled={saving}
-                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
-              >
-                {saving ? t("registering") : t("registerWithPasskey")}
-              </button>
-              <button
-                onClick={() => setStep("password")}
-                disabled={saving}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
-              >
-                {t("skipForNow")}
-              </button>
-            </div>
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
-          </>
-        )}
-
-        {step === "password" && (
-          <>
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">{t("setPasswordTitle")}</h1>
-              <p className="mt-2 text-muted-foreground">{t("setPasswordDesc")}</p>
-            </div>
-            <form onSubmit={handleSetPassword} className="space-y-4">
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder={t("yourPassword")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
-              >
-                {saving ? t("saving") : t("continue")}
-              </button>
-              <button
-                type="button"
-                onClick={finishOnboarding}
-                disabled={saving}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
-              >
-                {t("skipForNow")}
-              </button>
-            </form>
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
-          </>
-        )}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">{t("welcomeTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("enterName")}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            autoComplete="name"
+            placeholder={t("fullName")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+          />
+          <input
+            type="tel"
+            autoComplete="tel"
+            placeholder={t("yourPhone")}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+          />
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+          >
+            {saving ? t("saving") : t("continue")}
+          </button>
+        </form>
+        {error && <p className="text-sm text-destructive text-center">{error}</p>}
       </div>
     </div>
   );

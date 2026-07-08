@@ -14,7 +14,7 @@ export default function Home() {
       if (user) {
         router.replace("/queue");
       } else {
-        router.replace("/auth/login");
+        router.replace("/setup");
       }
       setChecking(false);
     });

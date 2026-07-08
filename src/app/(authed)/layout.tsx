@@ -8,7 +8,7 @@ export default async function AuthedLayout({ children }: { children: React.React
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/auth/login");
+  if (!user) redirect("/setup");
 
   const { data: profile } = await supabase
     .from("profiles")
