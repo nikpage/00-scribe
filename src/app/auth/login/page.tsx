@@ -45,6 +45,29 @@ export default function AuthPage() {
     setPasskeyEnrolledState(getPasskeyEnrolled());
   }, []);
 
+  // WebOTP: read the code straight from the incoming SMS and fill it in, with
+  // no typing. Works because the SMS we send ends with "@<domain> #<code>".
+  // Android Chrome auto-fills; iOS shows the code as a one-tap keyboard chip.
+  useEffect(() => {
+    if (mode !== "phone" || phoneStep !== "code") return;
+    if (!("OTPCredential" in window)) return;
+
+    const controller = new AbortController();
+    navigator.credentials
+      .get({
+        // @ts-expect-error — OTPCredential isn't in TS's lib.dom yet
+        otp: { transport: ["sms"] },
+        signal: controller.signal,
+      })
+      .then((otp: unknown) => {
+        const value = (otp as { code?: string } | null)?.code;
+        if (value) setCode(value);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [mode, phoneStep]);
+
   async function signInWithPasskey() {
     setError("");
     setLoading("passkey");

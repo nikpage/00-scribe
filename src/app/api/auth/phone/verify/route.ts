@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   const normalized = toE164(phone);
-  const ok = await checkPhoneVerification(requestId, code);
+  const ok = checkPhoneVerification(requestId, code, normalized);
   if (!ok) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
   }
