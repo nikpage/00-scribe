@@ -6,8 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 import { IdleProvider } from "@/hooks/use-idle";
-import { ReauthModal } from "@/components/reauth-modal";
-import { getRememberDevice } from "@/lib/remember-device";
 import type { TranslationKey } from "@/lib/i18n";
 
 export type AppUser = {
@@ -92,7 +90,6 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const [locked, setLocked] = useState(false);
   const [needsEway, setNeedsEway] = useState(false);
   const ewayAttention = useMemo<EwayAttention>(
     () => ({ needs: needsEway, flag: () => setNeedsEway(true), clear: () => setNeedsEway(false) }),
@@ -107,14 +104,16 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
 
   async function logout() {
     await supabase.auth.signOut();
-    router.replace("/auth/login");
+    router.replace("/setup");
   }
 
   return (
     <UserContext.Provider value={user}>
      <EwayAttentionContext.Provider value={ewayAttention}>
-     <IdleProvider onTimeout={() => { if (!getRememberDevice()) setLocked(true); }}>
-      <ReauthModal open={locked} onSuccess={() => setLocked(false)} />
+     {/* Identity is device-bound with no login, so there's nothing to
+         re-authenticate against — the idle timer no longer locks the app.
+         IdleProvider stays only for its keep-alive during recording. */}
+     <IdleProvider onTimeout={() => {}}>
       <div className="min-h-screen bg-background">
         <div className="flex">
           <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-muted/50 md:flex md:min-h-screen">
