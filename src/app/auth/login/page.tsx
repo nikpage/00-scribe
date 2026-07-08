@@ -10,7 +10,7 @@ import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
 
 type PhoneStep = "phone" | "code";
-type Mode = "phone" | "password";
+type Mode = "phone" | "password" | "magic";
 
 // Local Czech numbers are typed without a country code; default to it so
 // users don't have to know/type "+420" themselves.
@@ -33,7 +33,7 @@ export default function AuthPage() {
   const [pwMode, setPwMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-  const [loading, setLoading] = useState<"passkey" | "phone" | "password" | "reset" | null>(null);
+  const [loading, setLoading] = useState<"passkey" | "phone" | "password" | "reset" | "magic" | null>(null);
   // Only offer biometric sign-in on a device that actually enrolled a passkey,
   // so a fresh phone / empty database never surfaces stale OS credentials.
   const [passkeyEnrolled, setPasskeyEnrolledState] = useState(false);
@@ -225,6 +225,28 @@ export default function AuthPage() {
     setInfo(t("resetEmailSent"));
   }
 
+  // Email magic link — no SMS, no password. Supabase sends a link; tapping it
+  // hits /auth/callback which exchanges it for a session. Creates the account
+  // on first use, so it works for new and returning users alike.
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setLoading("magic");
+
+    const redirectTo = `${window.location.origin}/auth/callback?next=/`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+    setLoading(null);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setInfo(`${t("magicLinkSent")} ${email}`);
+  }
+
   return (
     <div className="min-h-screen p-4 pt-8">
       <div className="w-full max-w-sm mx-auto space-y-6">
@@ -389,19 +411,69 @@ export default function AuthPage() {
           </form>
         )}
 
+        {mode === "magic" && (
+          <form onSubmit={handleMagicLink} className="space-y-3">
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder={t("emailForMagicLink")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+            />
+            <button
+              type="submit"
+              disabled={loading !== null}
+              className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-primary-light disabled:opacity-50"
+            >
+              {loading === "magic" ? t("sendingCode") : t("sendMagicLink")}
+            </button>
+          </form>
+        )}
+
         {info && <p className="text-sm text-muted-foreground text-center">{info}</p>}
 
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === "phone" ? "password" : "phone");
-            setPhoneStep("phone");
-            setError("");
-          }}
-          className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
-        >
-          {mode === "phone" ? t("useEmailPassword") : t("signInWithPhone")}
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === "phone" ? "password" : "phone");
+              setPhoneStep("phone");
+              setError("");
+              setInfo("");
+            }}
+            className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
+          >
+            {mode === "phone" ? t("useEmailPassword") : t("signInWithPhone")}
+          </button>
+          {mode !== "magic" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("magic");
+                setPhoneStep("phone");
+                setError("");
+                setInfo("");
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
+            >
+              {t("useMagicLink")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("phone");
+                setError("");
+                setInfo("");
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
+            >
+              {t("signInWithPhone")}
+            </button>
+          )}
+        </div>
 
         {error && <p className="text-sm text-destructive text-center">{error}</p>}
       </div>
