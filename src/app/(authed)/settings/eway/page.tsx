@@ -21,6 +21,7 @@ function EwaySettings() {
   const [connection, setConnection] = useState<Connection | null | undefined>(undefined);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -190,14 +191,23 @@ function EwaySettings() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("ewayPassword")}</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 pr-16 text-foreground outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-primary hover:text-primary-light"
+                >
+                  {showPassword ? t("ewayHidePassword") : t("ewayShowPassword")}
+                </button>
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">{t("ewayPasswordHint")}</p>
             </div>
             <button

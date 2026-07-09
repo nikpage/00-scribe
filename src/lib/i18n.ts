@@ -237,6 +237,8 @@ const translations = {
       "Vaše přihlašovací údaje k eWay. Po připojení budou poznámky odesílány do eWay pod vaším jménem.",
     ewayUsername: "Uživatelské jméno",
     ewayPassword: "Heslo",
+    ewayShowPassword: "Zobrazit",
+    ewayHidePassword: "Skrýt",
     ewayPasswordHint:
       "Heslo se uloží šifrovaně. Použije se pouze pro odesílání záznamů do eWay.",
     ewayConnect: "Připojit",
@@ -494,6 +496,8 @@ const translations = {
       "Your eWay login. Once connected, post-session notes will be sent to eWay as you.",
     ewayUsername: "Username",
     ewayPassword: "Password",
+    ewayShowPassword: "Show",
+    ewayHidePassword: "Hide",
     ewayPasswordHint:
       "Stored encrypted. Used only to send recordings to eWay on your behalf.",
     ewayConnect: "Connect",
