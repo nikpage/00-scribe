@@ -25,20 +25,14 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/api/auth") &&
-    !request.nextUrl.pathname.startsWith("/api/webhook")
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    return NextResponse.redirect(url);
-  }
+  // Refresh the Supabase auth cookie for whoever is here, but do NOT gate
+  // access. Auth gating is the (authed)/layout.tsx server check. Redirecting
+  // unauthenticated users to /auth/login here loops forever: login was removed
+  // (2cdd04d), so /auth/login now just redirects to /setup, and /setup is not
+  // whitelisted — middleware would bounce it straight back to /auth/login.
+  // Sessions are created client-side on /setup, so logged-out visitors must be
+  // allowed to reach it.
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }
