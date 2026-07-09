@@ -82,7 +82,7 @@ export function PwaInstallPrompt() {
       ? "Klepněte na Sdílet a poté „Přidat na plochu“."
       : "Tap Share, then \"Add to Home Screen\"."
     : cs
-      ? "Přidejte Scribe na plochu pro rychlejší přístup."
+      ? "Přidejte Písaře na plochu pro rychlejší přístup."
       : "Add Scribe to your home screen for faster access.";
   const installLabel = cs ? "Nainstalovat" : "Install";
   const laterLabel = cs ? "Později" : "Not now";

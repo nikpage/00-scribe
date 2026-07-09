@@ -1,6 +1,6 @@
 const translations = {
   cs: {
-    appName: "Scribe",
+    appName: "Písař",
     // Auth
     registerTitle: "Vytvořit účet",
     registerButton: "Registrovat",
@@ -58,7 +58,7 @@ const translations = {
     haveAccountSignIn: "Máte účet? Přihlaste se",
     accountExistsSignIn: "K tomuto emailu už účet existuje — přihlaste se.",
     // Setup
-    welcomeTitle: "Vítejte ve Scribe",
+    welcomeTitle: "Vítejte v aplikaci Písař",
     enterName: "Zadejte své jméno",
     fullName: "Celé jméno",
     continue: "Pokračovat",
