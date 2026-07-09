@@ -17,8 +17,11 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 - **Next.js 16 (App Router)**, React, TypeScript, Tailwind
 - **Supabase** — Postgres + auth (cookie sessions via `@supabase/ssr`) + Realtime.
   Tables: `profiles`, `clients`, `recordings`, `eway_credentials`, audit log.
-- **Auth** — WebAuthn passkeys (`@simplewebauthn`) for the phone; magic link for cross-device;
-  SMS OTP via Vonage Verify (`src/lib/vonage.ts`) with a password fallback.
+- **Auth** — **No login screen.** First open silently creates an anonymous Supabase
+  account per device (`signInAnonymously` in `src/app/setup/page.tsx`), then captures
+  **name + phone** into `profiles`. Per-worker data stays separated via a real
+  `auth.uid`, with no password, code, email, or passkey. (The old
+  passkey/SMS/magic-link/password stack was removed — see the auth note in Gotchas.)
 - **Transcription** — provider-swappable behind `src/lib/transcription/index.ts`
   (AssemblyAI + Speechmatics). Results processed in `process-result.ts`.
 - **Analysis** — Google Gemini (`src/lib/analysis/gemini.ts`) for summaries / action items.
@@ -28,15 +31,17 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 
 ## Layout
 
-- `src/app/auth/` — login.
-- `src/app/setup/` — first-run onboarding: **name → passkey → eWay connect**.
+- `src/app/auth/login/` — legacy path; just `redirect("/setup")` for old bookmarks / sign-out.
+- `src/app/setup/` — first-run onboarding: **name + phone → eWay connect** (silent anon
+  sign-in on submit, then profile upsert, then `/settings/eway?onboarding=1`).
 - `src/app/(authed)/` — the app. `layout.tsx` (server) requires a session **and a
-  `profiles` row**, else redirects to `/auth/login` or `/setup`. Wraps everything
+  `profiles` row**, else redirects to `/setup`. Wraps everything
   in `AppShell`. Routes: `record`, `queue`, `clients`, `transcripts`, `transcript/[id]`,
   `manager`, `settings/eway`.
-- `src/app/api/` — route handlers (auth, transcribe/webhook, clients, eway/*, manager/*).
+- `src/app/api/` — route handlers (transcribe/webhook, clients, eway/*, manager/*).
 - `src/components/app-shell.tsx` — nav + shared client contexts (`useAppUser`,
-  `useEwayAttention`), idle-lock / re-auth modal.
+  `useEwayAttention`). `IdleProvider` wraps it but is a no-op kept only for the
+  recording keep-alive — there is no idle-lock or re-auth modal.
 - `src/lib/i18n.ts` — Czech (`cs`) + English (`en`) strings; consumed via the
   `useLang()` hook as `t("key")`. **Every user-facing string lives here, both locales.**
 
@@ -72,21 +77,23 @@ the `useEwayAttention` flag/clear calls, and the i18n keys.
 
 - **Build is webpack, not Turbopack.** Serwist/PWA is installed but disabled in config
   because it conflicted with Turbopack. Don't re-enable Turbopack without checking that.
-- **No middleware.** `src/lib/supabase/middleware.ts` exists but is not wired as
-  `src/middleware.ts` (Next 16 deprecation). Auth gating is the `(authed)/layout.tsx`
-  server check. See `plan.md` for the history.
-- **i18n is partial** — login/record/eWay screens are fully translated; some other
+- **Middleware refreshes the session cookie only — it must NOT gate auth.**
+  `src/middleware.ts` is wired and runs on every route (via `updateSession` in
+  `src/lib/supabase/middleware.ts`): it refreshes the Supabase auth cookie and sets
+  security headers. Auth **gating stays in `(authed)/layout.tsx`**. Do not make the
+  middleware redirect unauthenticated users to a login page: login was removed, so
+  `/auth/login` just bounces to `/setup`, and `/setup` (where the session is actually
+  created client-side) is not session-gated — a redirect here loops forever
+  (`ERR_TOO_MANY_REDIRECTS`, the July outage).
+- **i18n is partial** — setup/record/eWay screens are fully translated; some other
   screens are still English-only. Add both `cs` and `en` keys for any new string.
 - Client components reading search params (e.g. `?onboarding=1`) must be wrapped in
   `<Suspense>` or the production build fails.
-- **Vonage WebOTP auto-fill is parked, blocked on Vonage support.** SMS OTP login
-  works fully without it. `scripts/setup-vonage-webotp-template.mjs` creates the SMS
-  template needed for Android auto-fill, but `POST /v2/verify/templates` 403s —
-  custom Verify templates are disabled by default and only enabled per-account by
-  Vonage support/account manager, not a self-service or paid-tier toggle. Needs a
-  support ticket asking to enable "custom Verify v2 template management" before this
-  script can succeed. Auth itself is fine (JWT via `VONAGE_LIGA_SCRIBE_APPLICATION_ID`
-  + `VONAGE_PRIVATE_KEY`, not the account API key/secret).
+- **Login was removed** (silent name+phone identity). The passkey/SMS/magic-link/
+  password code and the Vonage integration are gone from the app; only
+  `scripts/setup-vonage-webotp-template.mjs` remains as a parked, unwired script.
+  If SMS/OTP is ever revived, note the account never had custom Verify v2 templates
+  enabled — that needs a Vonage support ticket, not a self-service toggle.
 
 ## Conventions
 
