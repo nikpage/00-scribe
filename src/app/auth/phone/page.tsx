@@ -59,7 +59,6 @@ export default function PhoneLoginPage() {
         return;
       }
       const { error: verifyErr } = await supabase.auth.verifyOtp({
-        email: data.email,
         token_hash: data.tokenHash,
         type: "magiclink",
       });

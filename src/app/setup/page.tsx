@@ -95,6 +95,16 @@ export default function SetupPage() {
           </button>
         </form>
         {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+        {/* Secondary, low-emphasis: this is device recovery (new/lost
+            device), not the everyday way in — a device that already has a
+            session never sees this page at all. */}
+        <a
+          href="/auth/phone"
+          className="block text-center text-xs text-muted-foreground hover:underline"
+        >
+          {t("alreadyHaveAccount")}
+        </a>
       </div>
     </div>
   );

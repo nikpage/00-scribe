@@ -54,7 +54,6 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
-    email: authUser.user.email,
     tokenHash: link.properties.hashed_token,
   });
 }
