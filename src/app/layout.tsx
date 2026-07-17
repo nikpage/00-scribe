@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { TitleSync } from "@/components/title-sync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,13 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scribe",
+  // Static fallback for the very first paint, before TitleSync picks up the
+  // language toggle; matches the Czech default (detectLang()).
+  title: "Písař",
   description: "Social worker interview recording & transcription",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Scribe",
+    title: "Písař",
   },
 };
 
@@ -50,6 +53,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {children}
+        <TitleSync />
         <PwaInstallPrompt />
       </body>
     </html>
