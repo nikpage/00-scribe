@@ -5,14 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useLang } from "@/hooks/use-lang";
 import { LangToggle } from "@/components/lang-toggle";
-
-// Local Czech numbers are typed without a country code; default to it so
-// users don't have to know/type "+420" themselves.
-function normalizePhoneInput(raw: string): string {
-  const digits = raw.replace(/[^\d]/g, "");
-  if (digits.startsWith("420")) return digits;
-  return `420${digits}`;
-}
+import { normalizePhoneE164 } from "@/lib/phone";
 
 export default function SetupPage() {
   const { lang, switchLang, t } = useLang();
@@ -48,15 +41,20 @@ export default function SetupPage() {
 
     const { error: upsertError } = await supabase
       .from("profiles")
-      .upsert({ id: user.id, name, phone: normalizePhoneInput(phone) });
-
-    setSaving(false);
+      .upsert({ id: user.id, name, phone: normalizePhoneE164(phone) });
 
     if (upsertError) {
+      setSaving(false);
       setError(upsertError.message);
       return;
     }
 
+    // Best-effort: gives this auth user a synthetic email so desktop phone
+    // login can later mint a session for this exact account. Not fatal if it
+    // fails — the worker just won't be able to log in on desktop yet.
+    await fetch("/api/auth/ensure-identity", { method: "POST" }).catch(() => {});
+
+    setSaving(false);
     router.push("/settings/eway?onboarding=1");
   }
 
