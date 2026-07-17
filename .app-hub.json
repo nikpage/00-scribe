@@ -1,0 +1,19 @@
+{
+  "name": "00-scribe",
+  "spend_project_key": "scribe",
+  "client": "Liga vozíčkářů",
+  "status": "dormant",
+  "railway_project_id": null,
+  "gcp_project_id": null,
+  "supabase_project_id": "nhdqpktrmufwipeedijn",
+  "supabase_account": "ainikpage@gmail.com",
+  "supabase_tier": "paid",
+  "vercel_project": "00-scribe",
+  "vercel_domain": "00-scribe.vercel.app",
+  "vonage_account": "ai@nik.page",
+  "vendors": ["assemblyai", "gemini", "vonage"],
+  "gemini_models": {
+    "gemini-3.1-flash-lite": "src/lib/analysis/gemini.ts — repo is dormant per status above, but this is what the code calls if it runs"
+  },
+  "notes": "Transcription via AssemblyAI (account ainikpage@gmail.com). Idle ~19 days as of 2026-07-02, expect $0 reports until reused. Gemini key source unconfirmed — check .env if revisited."
+}
