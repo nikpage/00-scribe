@@ -11,6 +11,7 @@
   "vercel_project": "00-scribe",
   "vercel_domain": "00-scribe.vercel.app",
   "vonage_account": "ai@nik.page",
+  "vonage_dashboard": "https://dashboard.vonage.com/",
   "vendors": ["assemblyai", "gemini", "vonage"],
   "gemini_models": {
     "gemini-3.1-flash-lite": "src/lib/analysis/gemini.ts — repo is dormant per status above, but this is what the code calls if it runs"
