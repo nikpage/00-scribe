@@ -63,7 +63,15 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 - `client.ts` — `ewayLogin()` against `EWAY_SERVICE_URL`.
 - `session.ts` — `getEwaySessionForCurrentUser()`: decrypt creds → log in → return a
   live session. Shared by the contacts and journal routes. **Returns `status: 404`
-  when the worker has no saved credentials** — the UI keys off this.
+  when the worker has no saved credentials** — the UI keys off this. **Known issue:**
+  it currently calls `ewayLogin()` fresh on every invocation (no session reuse, no
+  `LogOff`), and it's called on every request in `contacts`, `contacts/count`,
+  `journal`, and `journal-test` routes — including every keystroke in contact search.
+  Stale sessions accumulate on eWay's side until its per-account concurrent-session
+  cap rejects logins with `"There is too many sessions for user with GUID '...'"`.
+  Not locally reproducible on demand since it depends on session state accrued on
+  eWay's server. Fix: cache/reuse the sessionId per worker (TTL Map, same pattern as
+  the contacts-list cache below), re-login only on expiry.
 - `journal.ts` — pull/filter contacts, save a Journal entry.
 
 Credentials are saved per-worker at `/settings/eway`; the POST only persists after a
