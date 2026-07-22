@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
+import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
 import { saveJournal, searchContacts } from "@/lib/eway/journal";
 import { summarizeBrief } from "@/lib/analysis/gemini";
 import { ewayCall } from "@/lib/eway/client";
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   if (!sess.ok) return NextResponse.json({ error: sess.error }, { status: sess.status });
 
   const q = new URL(request.url).searchParams.get("contact") ?? "";
-  const contacts = await searchContacts(sess.session, q);
+  const contacts = await callEwayWithSessionRetry(sess, (session) => searchContacts(session, q));
   if (contacts.length === 0) {
     return NextResponse.json({ error: "No eWay contacts found to attach to" }, { status: 404 });
   }
@@ -39,23 +39,27 @@ export async function GET(request: Request) {
   const geminiKeyPresent = !!process.env.GEMINI_API_KEY;
 
   // No explicit subject -> exercises the real "<last name>: <AI summary>" path.
-  const result = await saveJournal(sess.session, {
-    contactGuid: contact.guid,
-    contactName: contact.name,
-    note: testNote,
-    eventStart: now.toISOString(),
-    eventEnd: now.toISOString(),
-  });
+  const result = await callEwayWithSessionRetry(sess, (session) =>
+    saveJournal(session, {
+      contactGuid: contact.guid,
+      contactName: contact.name,
+      note: testNote,
+      eventStart: now.toISOString(),
+      eventEnd: now.toISOString(),
+    })
+  );
 
   // Read the created record back, including relations, and keep only the
   // populated columns.
   let populated: Record<string, unknown> | null = null;
   if (result.journalGuid) {
-    const got = await ewayCall(sess.session, "GetJournalsByItemGuids", {
-      itemGuids: [result.journalGuid],
-      includeForeignKeys: true,
-      includeRelations: true,
-    });
+    const got = await callEwayWithSessionRetry(sess, (session) =>
+      ewayCall(session, "GetJournalsByItemGuids", {
+        itemGuids: [result.journalGuid],
+        includeForeignKeys: true,
+        includeRelations: true,
+      })
+    );
     const rec = Array.isArray(got.data) ? (got.data[0] as Record<string, unknown>) : null;
     if (rec) {
       populated = {};

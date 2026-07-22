@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptSecret } from "@/lib/eway/crypto";
 import { ewayLogin } from "@/lib/eway/client";
+import { invalidateEwaySession } from "@/lib/eway/session";
 import { logAudit } from "@/lib/audit";
 
 // GET — return the saved eWay connection for the current worker (no secrets).
@@ -96,6 +97,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Credentials changed — a session cached under the old password must not
+  // keep being reused.
+  invalidateEwaySession(user.id);
+
   await logAudit({
     actorId: user.id,
     action: "eway_connect",
@@ -120,6 +125,8 @@ export async function DELETE() {
     .delete()
     .eq("user_id", user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  invalidateEwaySession(user.id);
 
   await logAudit({
     actorId: user.id,

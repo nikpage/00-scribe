@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
+import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
 import { getClients, filterClients, type ContactOption } from "@/lib/eway/journal";
 
 // GET /api/eway/contacts?q=<name> — search the worker's eWay clients by name.
@@ -21,7 +21,10 @@ export async function GET(request: Request) {
   try {
     let entry = cache.get(sess.userId);
     if (refresh || !entry || entry.expires < Date.now()) {
-      entry = { clients: await getClients(sess.session), expires: Date.now() + TTL_MS };
+      entry = {
+        clients: await callEwayWithSessionRetry(sess, (session) => getClients(session)),
+        expires: Date.now() + TTL_MS,
+      };
       cache.set(sess.userId, entry);
     }
     return NextResponse.json(

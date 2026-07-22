@@ -33,10 +33,32 @@ export interface EwayCallResult {
   raw: unknown;
 }
 
+// Thrown by ewayCall when the ReturnCode indicates the sessionId itself is no
+// longer valid (expired / logged out server-side), as opposed to an ordinary
+// business-logic failure. Callers holding a cached session use this to know
+// when to evict it and log in again, rather than surfacing a raw 502.
+export class EwaySessionInvalidError extends Error {
+  returnCode: string;
+  constructor(returnCode: string, description: string | null) {
+    super(description ?? returnCode);
+    this.name = "EwaySessionInvalidError";
+    this.returnCode = returnCode;
+  }
+}
+
+// eWay's ReturnCode for an invalid/expired session isn't documented anywhere
+// in this repo, so match any code that mentions "session" (case-insensitive)
+// rather than pinning to a single guessed literal — mirrors the fuzzy
+// key-matching already used below for the sessionId field itself.
+function isSessionInvalidCode(returnCode: string): boolean {
+  return /session/i.test(returnCode);
+}
+
 // Generic authenticated call. All eWay API methods take a sessionId (from
 // LogIn) in the body alongside any method-specific fields, and answer with a
 // ReturnCode plus a Data payload. We return the parsed result verbatim so the
-// caller can inspect both success and failure.
+// caller can inspect both success and failure — except an invalid-session
+// code, which throws so callers can retry with a fresh session.
 export async function ewayCall(
   sessionId: string,
   method: string,
@@ -64,6 +86,9 @@ export async function ewayCall(
     Data?: unknown;
   };
   const returnCode = json.ReturnCode ?? "rcUnknown";
+  if (returnCode !== "rcSuccess" && isSessionInvalidCode(returnCode)) {
+    throw new EwaySessionInvalidError(returnCode, json.Description ?? null);
+  }
   return {
     ok: returnCode === "rcSuccess",
     returnCode,

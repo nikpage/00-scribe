@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
+import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
 import { saveJournal } from "@/lib/eway/journal";
 import { logAudit } from "@/lib/audit";
 
@@ -32,14 +32,16 @@ export async function POST(request: Request) {
   try {
     // saveJournal builds the "<last name>: <AI summary>" subject from
     // contactName + note when no explicit subject is given.
-    const result = await saveJournal(sess.session, {
-      contactGuid,
-      contactName,
-      note,
-      eventStart,
-      eventEnd,
-      subject,
-    });
+    const result = await callEwayWithSessionRetry(sess, (session) =>
+      saveJournal(session, {
+        contactGuid,
+        contactName,
+        note,
+        eventStart,
+        eventEnd,
+        subject,
+      })
+    );
 
     await logAudit({
       actorId: sess.userId,
