@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/eway/crypto";
 import { ewayLogin } from "@/lib/eway/client";
+import { notify } from "@/lib/notify";
 
 export type SessionResult =
   | { ok: true; session: string; userId: string }
@@ -37,6 +38,7 @@ export async function getEwaySessionForCurrentUser(): Promise<SessionResult> {
       tag: row.password_tag,
     });
   } catch {
+    notify("fail", `eWay: could not decrypt stored password for worker ${user.id}`);
     return { ok: false, status: 500, error: "Could not read stored eWay password." };
   }
 
@@ -44,9 +46,12 @@ export async function getEwaySessionForCurrentUser(): Promise<SessionResult> {
   try {
     login = await ewayLogin(row.username, password);
   } catch (err) {
-    return { ok: false, status: 502, error: err instanceof Error ? err.message : "eWay login failed" };
+    const message = err instanceof Error ? err.message : "eWay login failed";
+    notify("fail", `eWay login threw for worker ${user.id}: ${message}`);
+    return { ok: false, status: 502, error: message };
   }
   if (!login.ok || !login.sessionId) {
+    notify("fail", `eWay login rejected for worker ${user.id}: ${login.description ?? login.returnCode}`);
     return { ok: false, status: 502, error: login.description ?? login.returnCode };
   }
 

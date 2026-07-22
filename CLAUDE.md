@@ -74,6 +74,30 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
   the contacts-list cache below), re-login only on expiry.
 - `journal.ts` — pull/filter contacts, save a Journal entry.
 
+## Alerting + health
+
+- `src/lib/notify.ts` — `notify(status, message)` fire-and-forget POSTs to
+  `nikpage/app-hub`'s **notify-hub** Cloudflare Worker (project `"scribe"`),
+  which fans out to a Slack channel. Silently no-ops if `NOTIFY_HUB_TOKEN`
+  isn't set (local dev). Wired into server-side failure paths that are
+  otherwise invisible to the worker: eWay login/journal-save failures
+  (`lib/eway/session.ts`, `api/eway/journal/route.ts`), transcription
+  submission/processing failures (`api/transcribe/route.ts`,
+  `lib/transcription/process-result.ts`), upload failures
+  (`api/upload/route.ts`), and Gemini summary failures (`warn` — the
+  recording still saves, just without an AI summary). When adding a new
+  server-side failure path, consider whether it should call `notify()` too —
+  anything a worker wouldn't otherwise surface, or that only shows as a
+  generic toast, is a candidate.
+- `GET /api/health` — unauthenticated liveness check (verifies Supabase
+  reachability). Polled daily by app-hub's `scribe-usage-stats-sync.sh` as a
+  heartbeat; can also be pointed at by an external uptime monitor.
+- `nikpage/app-hub`'s daily cron (`scribe-usage-stats-sync.sh`) also reads
+  this app's `recordings` and `audit_log` tables directly (via
+  `APP_HUB_SCRIBE_SUPABASE_SERVICE_KEY`) for a daily usage/success-rate
+  digest, sent to the same Slack channel. See that repo for the sync script,
+  schema, and GH Actions workflow.
+
 Credentials are saved per-worker at `/settings/eway`; the POST only persists after a
 successful test login, so a stored credential is always known-good.
 

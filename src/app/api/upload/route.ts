@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notify } from "@/lib/notify";
 
 export const maxDuration = 60;
 
@@ -71,6 +72,8 @@ export async function POST(request: Request) {
       .from("recordings")
       .update({ status: "failed", error: msg })
       .eq("id", recordingId);
+
+    notify("fail", `Upload failed for recording ${recordingId}: ${msg}`);
 
     return NextResponse.json({ error: msg }, { status: 500 });
   }

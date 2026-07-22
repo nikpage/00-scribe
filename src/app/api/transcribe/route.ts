@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProvider } from "@/lib/transcription";
+import { notify } from "@/lib/notify";
 
 export const maxDuration = 120;
 
@@ -58,17 +59,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ transcriptionId });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Transcription submission failed";
     await admin
       .from("recordings")
-      .update({
-        status: "failed",
-        error: err instanceof Error ? err.message : "Transcription submission failed",
-      })
+      .update({ status: "failed", error: message })
       .eq("id", recordingId);
 
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Transcription failed" },
-      { status: 500 }
-    );
+    notify("fail", `Transcription submission failed for recording ${recordingId}: ${message}`);
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

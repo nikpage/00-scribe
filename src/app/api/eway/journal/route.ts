@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser } from "@/lib/eway/session";
 import { saveJournal } from "@/lib/eway/journal";
 import { logAudit } from "@/lib/audit";
+import { notify } from "@/lib/notify";
 
 // POST /api/eway/journal — save a contact visit into eWay as a Journal.
 //
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
+      notify("fail", `eWay journal save failed for worker ${sess.userId}: ${result.description ?? result.returnCode}`);
       return NextResponse.json(
         { error: result.description ?? result.returnCode, ...result },
         { status: 502 }
@@ -56,9 +58,8 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Journal save failed" },
-      { status: 502 }
-    );
+    const message = err instanceof Error ? err.message : "Journal save failed";
+    notify("fail", `eWay journal save threw for worker ${sess.userId}: ${message}`);
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { analyzeTranscript } from "@/lib/analysis/gemini";
 import { computeMetrics } from "@/lib/analysis/metrics";
+import { notify } from "@/lib/notify";
 import type { TranscriptionResult } from "./types";
 
 export function getAdminClient() {
@@ -53,6 +54,8 @@ export async function processTranscriptionResult(
       })
       .eq("id", recording.id);
 
+    notify("fail", `Transcription failed for recording ${recording.id}: ${result.error}`);
+
     return { found: true as const, status: "error" as const };
   }
 
@@ -82,7 +85,9 @@ export async function processTranscriptionResult(
       analysis = await analyzeTranscript(result.utterances, speakers);
     }
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("AI analysis failed (non-fatal):", err);
+    notify("warn", `AI summary failed for recording ${recording.id} (transcript saved, no summary): ${message}`);
   }
 
   // Update recording
