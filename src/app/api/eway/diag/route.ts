@@ -124,6 +124,55 @@ export async function GET(request: Request) {
     return NextResponse.json({ contactQuery, count: matches.length, matches });
   }
 
+  // If ?workflow=1 is given, list every workflow model and its stage enum
+  // values, so we can find the real GUID for the "Nahráno AI" stage before
+  // wiring StateEn into saveJournal.
+  if (new URL(request.url).searchParams.get("workflow") === "1") {
+    const JOURNAL_TYPE_ENUM = "c6773175-a570-4c24-b4d2-a4f6c3d9a64b";
+    const strv = (o: Record<string, unknown>, k: string) =>
+      typeof o[k] === "string" ? (o[k] as string) : null;
+
+    const [wfRes, enumRes] = await Promise.all([
+      ewayCall(session, "GetWorkflowModels", {}),
+      ewayCall(session, "GetEnumValues", {}),
+    ]);
+    const models = Array.isArray(wfRes.data) ? (wfRes.data as Record<string, unknown>[]) : [];
+    const allEnumValues = Array.isArray(enumRes.data)
+      ? (enumRes.data as Record<string, unknown>[])
+      : [];
+
+    const journalTypeValues = allEnumValues.filter(
+      (v) => strv(v, "EnumTypeGuid") === JOURNAL_TYPE_ENUM
+    );
+    const sorValue = journalTypeValues.find(
+      (v) => (strv(v, "FileAs") ?? "").trim().toLowerCase() === "sor"
+    );
+
+    const workflows = models.map((m) => {
+      const enumTypeGuid = strv(m, "EnumTypeGuid");
+      const stages = enumTypeGuid
+        ? allEnumValues
+            .filter((v) => strv(v, "EnumTypeGuid") === enumTypeGuid)
+            .map((v) => ({ name: strv(v, "FileAs") ?? strv(v, "En") ?? strv(v, "Cz"), guid: strv(v, "ItemGUID") }))
+        : [];
+      return {
+        name: strv(m, "FileAs"),
+        parentEn: strv(m, "ParentEn"),
+        enumTypeGuid,
+        stages,
+      };
+    });
+
+    return NextResponse.json({
+      journalTypeValues: journalTypeValues.map((v) => ({
+        name: strv(v, "FileAs"),
+        guid: strv(v, "ItemGUID"),
+      })),
+      resolvedSorGuid: sorValue ? strv(sorValue, "ItemGUID") : null,
+      workflows,
+    });
+  }
+
   // Pull a small sample of real journals to reveal the exact field codes,
   // and the field/enum definitions so we can map the custom dropdowns.
   const journals = await ewayCall(session, "GetJournals", {});
