@@ -558,26 +558,6 @@ export default function RecordPage() {
               {isNotes ? t("startNotesRecording") : t("startRecording")}
             </button>
 
-            <div className="relative flex items-center gap-3">
-              <div className="flex-1 border-t border-border" />
-              <span className="text-xs text-muted-foreground">{t("orUploadFile")}</span>
-              <div className="flex-1 border-t border-border" />
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={!label.trim() || uploadingFile || (isNotes && !parentRecordingId && !contactGuid)}
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground hover:bg-muted disabled:opacity-50"
-            >
-              {uploadingFile ? t("uploadingFile") : t("selectAudioFile")}
-            </button>
           </div>
         )}
 
