@@ -110,6 +110,15 @@ export default function QueuePage() {
     refetch();
   }
 
+  async function handleDelete(recordingId: string) {
+    await fetch("/api/recordings", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordingId }),
+    });
+    refetch();
+  }
+
   async function handleRetranscribe(recordingId: string) {
     setRetranscribingId(recordingId);
     try {
@@ -193,6 +202,7 @@ export default function QueuePage() {
               onRetry={handleRetry}
               onRetranscribe={handleRetranscribe}
               onArchive={handleArchive}
+              onDelete={handleDelete}
               retranscribingId={retranscribingId}
               onRefetch={refetch}
             />

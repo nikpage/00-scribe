@@ -214,6 +214,8 @@ const translations = {
     retranscribe: "Přepsat znovu",
     retranscribing: "Přepisování...",
     archive: "Archivovat",
+    delete: "Smazat",
+    deleteConfirm: "Opravdu smazat tento záznam? Tuto akci nelze vrátit.",
     dismissError: "Zavřít",
     orUploadFile: "nebo nahrát soubor",
     selectAudioFile: "Vybrat audio soubor",
@@ -256,6 +258,7 @@ const translations = {
     ewayDisconnectFailed: "Odpojení selhalo.",
     // eWay journal
     ewayJournalTitle: "Odeslat do eWay",
+    ewayJournalType: "Typ deníku",
     ewayJournalContact: "Kontakt",
     ewayJournalContactSearch: "Hledat kontakt podle jména…",
     ewayJournalDate: "Datum",
@@ -475,6 +478,8 @@ const translations = {
     retranscribe: "Re-transcribe",
     retranscribing: "Re-transcribing...",
     archive: "Archive",
+    delete: "Delete",
+    deleteConfirm: "Delete this recording? This cannot be undone.",
     dismissError: "Dismiss",
     orUploadFile: "or upload a file",
     selectAudioFile: "Select audio file",
@@ -515,6 +520,7 @@ const translations = {
     ewayDisconnectFailed: "Disconnect failed.",
     // eWay journal
     ewayJournalTitle: "Send to eWay",
+    ewayJournalType: "Journal type",
     ewayJournalContact: "Contact",
     ewayJournalContactSearch: "Search contact by name…",
     ewayJournalDate: "Date",

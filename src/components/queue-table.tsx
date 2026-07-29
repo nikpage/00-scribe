@@ -12,6 +12,7 @@ interface QueueTableProps {
   onRetry: (id: string) => void;
   onRetranscribe: (id: string) => void;
   onArchive: (id: string) => void;
+  onDelete: (id: string) => void;
   retranscribingId?: string | null;
   onRefetch?: () => void;
 }
@@ -49,9 +50,16 @@ function formatDate(dateStr: string, lang: string): string {
   });
 }
 
-export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onArchive, retranscribingId, onRefetch }: QueueTableProps) {
+export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onArchive, onDelete, retranscribingId, onRefetch }: QueueTableProps) {
   const { lang, t } = useLang();
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  function confirmDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (window.confirm(t("deleteConfirm"))) {
+      onDelete(id);
+    }
+  }
 
   const notesByParent = new Map<string, Recording[]>();
   for (const rec of recordings) {
@@ -184,6 +192,12 @@ export function QueueTable({ recordings, onUpload, onRetry, onRetranscribe, onAr
                 </button>
               </>
             )}
+            <button
+              onClick={(e) => confirmDelete(e, rec.id)}
+              className="rounded-md border border-destructive px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+            >
+              {t("delete")}
+            </button>
           </div>
 
           {/* Expandable analysis section */}

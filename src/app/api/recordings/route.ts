@@ -174,3 +174,53 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ success: true });
 }
+
+// DELETE — permanently remove a recording (and its stored audio/transcript
+// files) from the worker's own account. Never touches eWay-CRM: a journal
+// entry already pushed there is unaffected.
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { recordingId } = await request.json();
+
+  if (!recordingId) {
+    return NextResponse.json({ error: "Missing recordingId" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: recording, error: fetchErr } = await admin
+    .from("recordings")
+    .select("id, user_id, drive_audio_id, drive_text_id")
+    .eq("id", recordingId)
+    .single();
+
+  if (fetchErr || !recording) {
+    return NextResponse.json({ error: "Recording not found" }, { status: 404 });
+  }
+  if (recording.user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const storagePaths = [recording.drive_audio_id, recording.drive_text_id].filter(
+    (p): p is string => !!p
+  );
+  if (storagePaths.length) {
+    await admin.storage.from("recordings").remove(storagePaths);
+  }
+
+  const { error } = await admin.from("recordings").delete().eq("id", recordingId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
