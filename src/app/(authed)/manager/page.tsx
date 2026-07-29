@@ -21,10 +21,7 @@ export default function ManagerPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    if (!user.isManager) {
-      setLoading(false);
-      return;
-    }
+    if (!user.isManager) return;
     async function load() {
       const { data } = await supabase
         .from("recordings")

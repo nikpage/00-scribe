@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useLang } from "@/hooks/use-lang";
 import { useAppUser } from "@/components/app-shell";
 
@@ -135,9 +136,9 @@ export default function ClientDetailPage() {
 
   return (
     <main className="p-4 md:p-6">
-      <a href="/clients" className="text-sm text-primary hover:underline">
+      <Link href="/clients" className="text-sm text-primary hover:underline">
         ← {t("backToClients")}
-      </a>
+      </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>

@@ -42,7 +42,7 @@ export function IdleProvider({
   children: ReactNode;
   onTimeout: () => void;
 }) {
-  const lastActivityRef = useRef(Date.now());
+  const lastActivityRef = useRef<number | null>(null);
   const onTimeoutRef = useRef(onTimeout);
 
   useEffect(() => {
@@ -54,6 +54,7 @@ export function IdleProvider({
   }, []);
 
   useEffect(() => {
+    lastActivityRef.current = Date.now();
     const reset = () => {
       lastActivityRef.current = Date.now();
     };
@@ -86,7 +87,7 @@ export function IdleProvider({
 
     const interval = setInterval(() => {
       const limit = isMobile() ? MOBILE_IDLE_MS : DESKTOP_IDLE_MS;
-      if (Date.now() - lastActivityRef.current > limit) {
+      if (lastActivityRef.current !== null && Date.now() - lastActivityRef.current > limit) {
         onTimeoutRef.current();
       }
     }, POLL_MS);

@@ -20,14 +20,18 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function loadClients() {
-    const r = await fetch("/api/clients");
-    const data = await r.json();
-    setClients(data.clients || []);
-  }
-
   useEffect(() => {
-    loadClients().finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      const r = await fetch("/api/clients");
+      const data = await r.json();
+      if (cancelled) return;
+      setClients(data.clients || []);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function formatDate(iso: string | null) {

@@ -158,7 +158,14 @@ async function main() {
   }
 
   // 6. Format output as speaker utterances (group consecutive words by speaker)
-  const words = result.results?.filter((r: any) => r.type === "word" || r.type === "punctuation") || [];
+  interface SpeechmaticsResultItem {
+    type: string;
+    alternatives?: { speaker?: string; content?: string }[];
+  }
+  const words: SpeechmaticsResultItem[] =
+    result.results?.filter(
+      (r: SpeechmaticsResultItem) => r.type === "word" || r.type === "punctuation"
+    ) || [];
 
   const utterances: { speaker: string; text: string }[] = [];
   let currentSpeaker = "";
@@ -192,7 +199,7 @@ async function main() {
     console.log(`[${u.speaker}]: ${u.text}\n`);
   }
   console.log(`\nTotal utterances: ${utterances.length}`);
-  console.log(`Total words: ${words.filter((w: any) => w.type === "word").length}`);
+  console.log(`Total words: ${words.filter((w) => w.type === "word").length}`);
 }
 
 main().catch((err) => {
