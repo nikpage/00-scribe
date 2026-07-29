@@ -115,22 +115,12 @@ function fold(s: string): string {
   return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-// A contact counts as a client if "klient" appears in its job title — the
-// agency tags clients that way (e.g. "Klient Znojmo - ukončen (SOR)"). eWay
-// stores the job title in the "Title" field. Diacritics folded so klient/Klient
-// both match.
-function isClient(c: Record<string, unknown>): boolean {
-  const title = str(c, "Title");
-  return !!title && fold(title).includes("klient");
-}
-
-// Pull the full client list from eWay (one slow call). Only clients (job title
-// contains "klient"). Cache this and filter locally rather than calling eWay on
-// every keystroke. The display name is "Surname, First" so duplicates are clear.
-export async function getClients(session: string): Promise<ContactOption[]> {
+// Pull the full contact list from eWay (one slow call), unfiltered. Cache this
+// and filter locally rather than calling eWay on every keystroke. The display
+// name is "Surname, First" so duplicates are clear.
+export async function getContacts(session: string): Promise<ContactOption[]> {
   const res = await ewayCall(session, "GetContacts", {});
   return asArray(res.data)
-    .filter(isClient)
     .map((c) => {
       const first = str(c, "FirstName") ?? "";
       const last = str(c, "LastName") ?? "";
@@ -141,19 +131,19 @@ export async function getClients(session: string): Promise<ContactOption[]> {
     .filter((c) => c.guid && c.name);
 }
 
-// Filter an already-loaded client list by a typed query: every word (in any
+// Filter an already-loaded contact list by a typed query: every word (in any
 // order, accent-free) must appear in the name. Cheap, runs locally.
-export function filterClients(clients: ContactOption[], query: string): ContactOption[] {
+export function filterContacts(contacts: ContactOption[], query: string): ContactOption[] {
   const tokens = fold(query).split(/\s+/).filter(Boolean);
   const matched = tokens.length
-    ? clients.filter((c) => tokens.every((t) => fold(c.name).includes(t)))
-    : clients;
+    ? contacts.filter((c) => tokens.every((t) => fold(c.name).includes(t)))
+    : contacts;
   return matched.slice(0, 50);
 }
 
 // Convenience: load + filter in one go (used where caching isn't set up).
 export async function searchContacts(session: string, query: string): Promise<ContactOption[]> {
-  return filterClients(await getClients(session), query);
+  return filterContacts(await getContacts(session), query);
 }
 
 // The Superior Item ("Sociální služby <year>") is another eWay record, so the

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
-import { getClients, filterClients, type ContactOption } from "@/lib/eway/journal";
+import { getContacts, filterContacts, type ContactOption } from "@/lib/eway/journal";
 
-// GET /api/eway/contacts?q=<name> — search the worker's eWay clients by name.
+// GET /api/eway/contacts?q=<name> — search the worker's eWay contacts by name.
 //
-// eWay is slow, so we pull the full client list once per worker and cache it for
+// eWay is slow, so we pull the full contact list once per worker and cache it for
 // a few minutes; each keystroke filters that cached list locally instead of
 // hitting eWay again.
 const TTL_MS = 5 * 60 * 1000;
-const cache = new Map<string, { clients: ContactOption[]; expires: number }>();
+const cache = new Map<string, { contacts: ContactOption[]; expires: number }>();
 
 export async function GET(request: Request) {
   const sess = await getEwaySessionForCurrentUser();
@@ -22,13 +22,13 @@ export async function GET(request: Request) {
     let entry = cache.get(sess.userId);
     if (refresh || !entry || entry.expires < Date.now()) {
       entry = {
-        clients: await callEwayWithSessionRetry(sess, (session) => getClients(session)),
+        contacts: await callEwayWithSessionRetry(sess, (session) => getContacts(session)),
         expires: Date.now() + TTL_MS,
       };
       cache.set(sess.userId, entry);
     }
     return NextResponse.json(
-      { contacts: filterClients(entry.clients, q), total: entry.clients.length },
+      { contacts: filterContacts(entry.contacts, q), total: entry.contacts.length },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
