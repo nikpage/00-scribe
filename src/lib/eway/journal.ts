@@ -40,6 +40,13 @@ const ENUM_TYPE_BY_COLUMN = {
 // The standard Journal "Type" field draws from the JournalType enum.
 const JOURNAL_TYPE_ENUM = "c6773175-a570-4c24-b4d2-a4f6c3d9a64b";
 
+// The "SOR" journal's workflow (eWay: WorkflowModel "JournalType_SOR", whose
+// ParentEn is the SOR JournalType value above) stores its stages under this
+// enum type. New recordings land in the "Nahráno AI" stage via the standard
+// StateEn field, same mechanism as TypeEn.
+const JOURNAL_WORKFLOW_ENUM = "b8793e21-2508-4470-8e64-81a9c6c90f6b";
+const WORKFLOW_STAGE_ON_SAVE = "Nahráno AI";
+
 function asArray(data: unknown): Record<string, unknown>[] {
   return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
 }
@@ -211,7 +218,7 @@ export async function saveJournal(
   const subject =
     input.subject?.trim() || (await buildSubject(input.contactName, input.note));
 
-  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalType] =
+  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalType, workflowStage] =
     await Promise.all([
       resolveEnumValue(session, "af_41", JOURNAL_DEFAULTS.forma),
       resolveEnumValue(session, "af_50", JOURNAL_DEFAULTS.typKontaktu),
@@ -219,6 +226,7 @@ export async function saveJournal(
       resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sorOblastPotreb),
       resolveEnumValue(session, "_af_42", JOURNAL_DEFAULTS.oblastDotazu),
       resolveEnumValueByType(session, JOURNAL_TYPE_ENUM, JOURNAL_DEFAULTS.type),
+      resolveEnumValueByType(session, JOURNAL_WORKFLOW_ENUM, WORKFLOW_STAGE_ON_SAVE),
     ]);
 
   // Custom (af_NN) fields live under AdditionalFields, not as top-level columns.
@@ -245,6 +253,8 @@ export async function saveJournal(
   };
   // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
   if (journalType) transmitObject.TypeEn = journalType;
+  // Workflow status (the "Nahráno AI" stage) is stored in StateEn.
+  if (workflowStage) transmitObject.StateEn = workflowStage;
 
   // Superior Item ("Sociální služby <year>") is a yearly Project; look up its
   // GUID. It's linked as a relation below, not a journal column.
