@@ -96,6 +96,7 @@ export function TranscriptViewer({
 
   return (
     <div>
+      {speakerIds.length > 1 && (
       <div className="mb-6 flex flex-wrap items-start gap-3">
         {speakerIds.map((id) => (
           <div key={id} className="flex flex-col gap-2">
@@ -167,6 +168,7 @@ export function TranscriptViewer({
           </button>
         )}
       </div>
+      )}
 
       <div className="space-y-4">
         {utterances.map((utterance, i) => (

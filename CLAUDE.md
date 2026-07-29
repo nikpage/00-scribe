@@ -29,7 +29,10 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 - **Transcription** — provider-swappable behind `src/lib/transcription/index.ts`
   (AssemblyAI + Speechmatics). Results processed in `process-result.ts`.
 - **Analysis** — Google Gemini (`src/lib/analysis/gemini.ts`) for summaries / action items.
-- **Storage** — Google Drive (audio + `.txt` transcripts) via service account.
+- **Storage** — Supabase Storage, bucket `recordings` (audio + `.txt` transcripts),
+  path `{user.id}/{filename}` (`src/app/api/upload/route.ts`). The `drive_audio_id` /
+  `drive_text_id` DB columns are legacy names — they hold Supabase storage paths, not
+  Google Drive file IDs. Google Drive is not used anywhere in this project.
 - **eWay-CRM** — `src/lib/eway/` (see below).
 - Deployed on Vercel (`00-scribe.vercel.app`).
 
