@@ -69,6 +69,10 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
 Credentials are saved per-worker at `/settings/eway`; the POST only persists after a
 successful test login, so a stored credential is always known-good.
 
+For raw eWay API details (Swagger spec location, live-discovery pattern via the
+`diag` route, the workflow/`StateEn` mechanism, known enum GUIDs) see
+`docs/eway-api-notes.md` — no need to read it unless doing eWay API work.
+
 ### Onboarding + "connect eWay" nudge (the flow to preserve)
 
 1. Setup ends by routing to `/settings/eway?onboarding=1` (after the name step for a
