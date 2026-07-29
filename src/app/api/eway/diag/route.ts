@@ -131,6 +131,8 @@ export async function GET(request: Request) {
     const JOURNAL_TYPE_ENUM = "c6773175-a570-4c24-b4d2-a4f6c3d9a64b";
     const strv = (o: Record<string, unknown>, k: string) =>
       typeof o[k] === "string" ? (o[k] as string) : null;
+    const enumTypeOf = (v: Record<string, unknown>) =>
+      strv(v, "EnumTypeGuid") ?? strv(v, "EnumType") ?? strv(v, "AssociatedEnumTypeGuid");
 
     const [wfRes, enumRes] = await Promise.all([
       ewayCall(session, "GetWorkflowModels", {}),
@@ -141,9 +143,7 @@ export async function GET(request: Request) {
       ? (enumRes.data as Record<string, unknown>[])
       : [];
 
-    const journalTypeValues = allEnumValues.filter(
-      (v) => strv(v, "EnumTypeGuid") === JOURNAL_TYPE_ENUM
-    );
+    const journalTypeValues = allEnumValues.filter((v) => enumTypeOf(v) === JOURNAL_TYPE_ENUM);
     const sorValue = journalTypeValues.find(
       (v) => (strv(v, "FileAs") ?? "").trim().toLowerCase() === "sor"
     );
@@ -152,7 +152,7 @@ export async function GET(request: Request) {
       const enumTypeGuid = strv(m, "EnumTypeGuid");
       const stages = enumTypeGuid
         ? allEnumValues
-            .filter((v) => strv(v, "EnumTypeGuid") === enumTypeGuid)
+            .filter((v) => enumTypeOf(v) === enumTypeGuid)
             .map((v) => ({ name: strv(v, "FileAs") ?? strv(v, "En") ?? strv(v, "Cz"), guid: strv(v, "ItemGUID") }))
         : [];
       return {
@@ -164,6 +164,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
+      sampleEnumValueKeys: allEnumValues[0] ? Object.keys(allEnumValues[0]) : [],
       journalTypeValues: journalTypeValues.map((v) => ({
         name: strv(v, "FileAs"),
         guid: strv(v, "ItemGUID"),
