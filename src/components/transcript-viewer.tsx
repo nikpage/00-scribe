@@ -173,12 +173,14 @@ export function TranscriptViewer({
       <div className="space-y-4">
         {utterances.map((utterance, i) => (
           <div key={i} className="flex gap-3">
-            <button
-              onClick={() => openPicker(utterance.speaker)}
-              className={`shrink-0 text-sm font-semibold ${speakerColors[utterance.speaker]}`}
-            >
-              {getSpeakerName(utterance.speaker)}:
-            </button>
+            {speakerIds.length > 1 && (
+              <button
+                onClick={() => openPicker(utterance.speaker)}
+                className={`shrink-0 text-sm font-semibold ${speakerColors[utterance.speaker]}`}
+              >
+                {getSpeakerName(utterance.speaker)}:
+              </button>
+            )}
             <p className="text-sm leading-relaxed">{utterance.text}</p>
           </div>
         ))}
