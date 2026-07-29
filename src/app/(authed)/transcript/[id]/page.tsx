@@ -18,6 +18,7 @@ interface Recording {
   speakers: Record<string, string>;
   eway_contact_guid: string | null;
   eway_contact_name: string | null;
+  kind: "interview" | "worker_notes";
 }
 
 export default function TranscriptPage() {
@@ -33,7 +34,7 @@ export default function TranscriptPage() {
     async function load() {
       const { data } = await supabase
         .from("recordings")
-        .select("id, label, filename, recorded_at, duration_seconds, transcript, speakers, eway_contact_guid, eway_contact_name")
+        .select("id, label, filename, recorded_at, duration_seconds, transcript, speakers, eway_contact_guid, eway_contact_name, kind")
         .eq("id", id)
         .single();
 
@@ -102,16 +103,18 @@ export default function TranscriptPage() {
         initialContactName={recording.eway_contact_name}
       />
 
-      <TranscriptViewer
-        utterances={recording.transcript.utterances}
-        speakers={{
-          ...(user.name && { "0": user.name }),
-          ...(recording.label && { "1": recording.label }),
-          ...recording.speakers,
-        }}
-        suggestions={[user.name, recording.label].filter(Boolean)}
-        onSaveSpeakers={handleSaveSpeakers}
-      />
+      {recording.kind !== "worker_notes" && (
+        <TranscriptViewer
+          utterances={recording.transcript.utterances}
+          speakers={{
+            ...(user.name && { "0": user.name }),
+            ...(recording.label && { "1": recording.label }),
+            ...recording.speakers,
+          }}
+          suggestions={[user.name, recording.label].filter(Boolean)}
+          onSaveSpeakers={handleSaveSpeakers}
+        />
+      )}
     </main>
   );
 }
