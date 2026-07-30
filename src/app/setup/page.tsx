@@ -10,9 +10,10 @@ import { normalizePhoneE164 } from "@/lib/phone";
 // Single phone-first entry point for both new and returning workers:
 //   1. Enter phone -> we look it up.
 //   2. New number -> ask for a name, create the account, no OTP needed.
-//   3. Existing number -> send an OTP and sign back into that same account
-//      (this is the only path that ever needs a code — a device that
-//      already has a session never reaches this page at all).
+//   3. Existing number, device already trusted -> sign back in with no OTP.
+//   4. Existing number, new device -> send an OTP once; that device is then
+//      trusted for all future logins (a device that already has a session
+//      never reaches this page at all).
 type Step = "phone" | "name" | "code";
 
 export default function SetupPage() {
@@ -47,6 +48,24 @@ export default function SetupPage() {
       if (!lookup.exists) {
         setStep("name");
         return;
+      }
+
+      // Already-trusted device: skip the OTP entirely.
+      const deviceRes = await fetch("/api/auth/phone/device-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      if (deviceRes.ok) {
+        const deviceData = await deviceRes.json();
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
+          token_hash: deviceData.tokenHash,
+          type: "magiclink",
+        });
+        if (!verifyErr) {
+          router.push("/queue");
+          return;
+        }
       }
 
       const startRes = await fetch("/api/auth/phone/start", {

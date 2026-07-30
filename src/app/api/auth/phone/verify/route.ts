@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhoneE164 } from "@/lib/phone";
 import { checkPhoneVerification } from "@/lib/vonage";
+import { ensureTrustedDevice } from "@/lib/device-trust";
 
 // POST /api/auth/phone/verify — { phone, requestId, code }
 // Confirms the OTP with Vonage, then mints a magic-link token for the
@@ -53,7 +54,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: linkErr?.message || "Could not create session" }, { status: 500 });
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     tokenHash: link.properties.hashed_token,
   });
+
+  // This OTP just proved the device — remember it so future logins here
+  // never need one again.
+  const deviceCookie = await ensureTrustedDevice(request, profile.id);
+  if (deviceCookie) {
+    response.cookies.set(deviceCookie.name, deviceCookie.value, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/api/auth",
+      maxAge: deviceCookie.maxAge,
+    });
+  }
+
+  return response;
 }
