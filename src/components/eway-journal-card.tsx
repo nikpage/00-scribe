@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useEwayAttention } from "@/components/app-shell";
+import {
+  JOURNAL_TYPES,
+  type JournalTypeName,
+  loadStoredJournalType,
+  storeJournalType,
+} from "@/lib/eway/journal-types";
 
 interface ContactOption {
   guid: string;
@@ -55,6 +61,18 @@ export function EwayJournalCard({
   const [time, setTime] = useState(`${pad(seedTime.getHours())}:${pad(seedTime.getMinutes())}`);
 
   const [note, setNote] = useState(initialNote);
+
+  // Remembers the worker's last choice across recordings (most only ever use
+  // one). Starts at the SSR-safe default and syncs from storage after mount
+  // to avoid a hydration mismatch.
+  const [journalType, setJournalType] = useState<JournalTypeName>("SOR");
+  useEffect(() => {
+    setJournalType(loadStoredJournalType());
+  }, []);
+  function handleJournalTypeChange(next: JournalTypeName) {
+    setJournalType(next);
+    storeJournalType(next);
+  }
 
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -125,6 +143,7 @@ export function EwayJournalCard({
           contactName: picked.name,
           note,
           eventStart: start.toISOString(),
+          journalType,
         }),
       });
       if (res.status === 404) {
@@ -155,6 +174,22 @@ export function EwayJournalCard({
   return (
     <section className="mb-6 rounded-lg border border-border bg-background p-4">
       <h3 className="mb-3 text-sm font-semibold">{t("ewayJournalTitle")}</h3>
+
+      {/* Journal type */}
+      <div className="mb-3">
+        <label className="mb-1 block text-xs text-muted-foreground">{t("ewayJournalType")}</label>
+        <select
+          value={journalType}
+          onChange={(e) => handleJournalTypeChange(e.target.value as JournalTypeName)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+        >
+          {JOURNAL_TYPES.map((jt) => (
+            <option key={jt} value={jt}>
+              {jt}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Contact picker */}
       <div className="relative mb-3">

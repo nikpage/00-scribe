@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
-import { saveJournal } from "@/lib/eway/journal";
+import { saveJournal, JOURNAL_TYPES, type JournalTypeName } from "@/lib/eway/journal";
 import { logAudit } from "@/lib/audit";
 
 // POST /api/eway/journal — save a contact visit into eWay as a Journal.
 //
-// Body: { contactGuid, note, eventStart, eventEnd?, subject? }
+// Body: { contactGuid, note, eventStart, eventEnd?, subject?, journalType? }
 //   contactGuid  the eWay contact picked by the worker
 //   note         the transcribed notes -> Poznámka
 //   eventStart   ISO datetime of the visit (date = today, time from phone)
 //   eventEnd     optional ISO end; defaults to eventStart
+//   journalType  "SOR" | "Poradna" — which Journal type/workflow to save into
 // The fixed dropdowns (Forma, Typ kontaktu, Cílová skupina, counts) come from
 // JOURNAL_DEFAULTS on the server.
 export async function POST(request: Request) {
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
   if (!eventStart) return NextResponse.json({ error: "Missing eventStart" }, { status: 400 });
 
   const subject = typeof body?.subject === "string" ? body.subject : undefined;
+  const journalType: JournalTypeName | undefined =
+    typeof body?.journalType === "string" &&
+    (JOURNAL_TYPES as readonly string[]).includes(body.journalType)
+      ? (body.journalType as JournalTypeName)
+      : undefined;
 
   try {
     // saveJournal builds the "<last name>: <AI summary>" subject from
@@ -40,6 +46,7 @@ export async function POST(request: Request) {
         eventStart,
         eventEnd,
         subject,
+        journalType,
       })
     );
 

@@ -6,6 +6,12 @@ import { generateFilename } from "@/lib/filename";
 import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
 import { useKeepAliveWhile } from "@/hooks/use-idle";
+import {
+  JOURNAL_TYPES,
+  type JournalTypeName,
+  loadStoredJournalType,
+  storeJournalType,
+} from "@/lib/eway/journal-types";
 
 function readRecordParams(): {
   kind: "interview" | "worker_notes";
@@ -36,6 +42,7 @@ export default function RecordPage() {
   const [contactSearching, setContactSearching] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [contactError, setContactError] = useState("");
+  const [journalType, setJournalType] = useState<JournalTypeName>("SOR");
   const [speakerCount, setSpeakerCount] = useState(2);
   const [error, setError] = useState("");
   const [state, setState] = useState<RecordingState>("idle");
@@ -57,7 +64,13 @@ export default function RecordPage() {
 
   useEffect(() => {
     setRecordParams(readRecordParams());
+    setJournalType(loadStoredJournalType());
   }, []);
+
+  function handleJournalTypeChange(next: JournalTypeName) {
+    setJournalType(next);
+    storeJournalType(next);
+  }
 
   // For a notes recording, the client is fixed by the parent interview —
   // we resolve the parent's label once so the UI can show "Notes for X".
@@ -475,6 +488,23 @@ export default function RecordPage() {
                     ))}
                   </ul>
                 )}
+
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    {t("ewayJournalType")}
+                  </label>
+                  <select
+                    value={journalType}
+                    onChange={(e) => handleJournalTypeChange(e.target.value as JournalTypeName)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    {JOURNAL_TYPES.map((jt) => (
+                      <option key={jt} value={jt}>
+                        {jt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ) : (
               <>

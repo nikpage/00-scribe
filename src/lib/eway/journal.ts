@@ -1,5 +1,8 @@
 import { ewayCall } from "./client";
 import { summarizeBrief } from "@/lib/analysis/gemini";
+import { JOURNAL_TYPES, isJournalTypeName, type JournalTypeName } from "./journal-types";
+
+export { JOURNAL_TYPES, type JournalTypeName };
 
 // Building and saving the "social services" contact Journal in eWay.
 //
@@ -40,11 +43,15 @@ const ENUM_TYPE_BY_COLUMN = {
 // The standard Journal "Type" field draws from the JournalType enum.
 const JOURNAL_TYPE_ENUM = "c6773175-a570-4c24-b4d2-a4f6c3d9a64b";
 
-// The "SOR" journal's workflow (eWay: WorkflowModel "JournalType_SOR", whose
-// ParentEn is the SOR JournalType value above) stores its stages under this
-// enum type. New recordings land in the "Nahráno AI" stage via the standard
-// StateEn field, same mechanism as TypeEn.
-const JOURNAL_WORKFLOW_ENUM = "b8793e21-2508-4470-8e64-81a9c6c90f6b";
+// Each Journal type ("SOR", "Poradna") has its own eWay WorkflowModel
+// (ParentEn = that type's JournalType value), each with its own stage enum
+// type. New recordings land in the "Nahráno AI" stage of whichever workflow
+// matches the chosen journal type, via the standard StateEn field, same
+// mechanism as TypeEn.
+const JOURNAL_WORKFLOW_ENUM_BY_TYPE: Record<JournalTypeName, string> = {
+  SOR: "b8793e21-2508-4470-8e64-81a9c6c90f6b",
+  Poradna: "e499059e-8e6c-4dbc-ba7a-5a53384313b1",
+};
 const WORKFLOW_STAGE_ON_SAVE = "Nahráno AI";
 
 function asArray(data: unknown): Record<string, unknown>[] {
@@ -182,6 +189,7 @@ export interface SaveJournalInput {
   eventStart: string; // ISO
   eventEnd: string; // ISO
   subject?: string; // explicit subject overrides the generated one
+  journalType?: JournalTypeName; // "SOR" | "Poradna" — defaults to JOURNAL_DEFAULTS.type
 }
 
 // Subject is "<contact last name>: <brief AI summary of the note>". The picked
@@ -218,15 +226,21 @@ export async function saveJournal(
   const subject =
     input.subject?.trim() || (await buildSubject(input.contactName, input.note));
 
-  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalType, workflowStage] =
+  const journalTypeName: JournalTypeName =
+    input.journalType && isJournalTypeName(input.journalType)
+      ? input.journalType
+      : JOURNAL_DEFAULTS.type;
+  const workflowEnumGuid = JOURNAL_WORKFLOW_ENUM_BY_TYPE[journalTypeName];
+
+  const [forma, typKontaktu, cilovaSkupina, sorOblast, oblastDotazu, journalTypeGuid, workflowStage] =
     await Promise.all([
       resolveEnumValue(session, "af_41", JOURNAL_DEFAULTS.forma),
       resolveEnumValue(session, "af_50", JOURNAL_DEFAULTS.typKontaktu),
       resolveEnumValue(session, "_af_79", JOURNAL_DEFAULTS.cilovaSkupina),
       resolveEnumValue(session, "_af_105", JOURNAL_DEFAULTS.sorOblastPotreb),
       resolveEnumValue(session, "_af_42", JOURNAL_DEFAULTS.oblastDotazu),
-      resolveEnumValueByType(session, JOURNAL_TYPE_ENUM, JOURNAL_DEFAULTS.type),
-      resolveEnumValueByType(session, JOURNAL_WORKFLOW_ENUM, WORKFLOW_STAGE_ON_SAVE),
+      resolveEnumValueByType(session, JOURNAL_TYPE_ENUM, journalTypeName),
+      resolveEnumValueByType(session, workflowEnumGuid, WORKFLOW_STAGE_ON_SAVE),
     ]);
 
   // Custom (af_NN) fields live under AdditionalFields, not as top-level columns.
@@ -252,7 +266,7 @@ export async function saveJournal(
     AdditionalFields: additionalFields,
   };
   // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
-  if (journalType) transmitObject.TypeEn = journalType;
+  if (journalTypeGuid) transmitObject.TypeEn = journalTypeGuid;
   // Workflow status (the "Nahráno AI" stage) is stored in StateEn.
   if (workflowStage) transmitObject.StateEn = workflowStage;
 
