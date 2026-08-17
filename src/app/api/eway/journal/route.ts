@@ -11,6 +11,7 @@ import { logAudit } from "@/lib/audit";
 //   eventStart   ISO datetime of the visit (date = today, time from phone)
 //   eventEnd     optional ISO end; defaults to eventStart
 //   journalType  "SOR" | "Poradna" — which Journal type/workflow to save into
+//   ownerGuid    optional eWay employee (Users GUID) responsible for the visit
 // The fixed dropdowns (Forma, Typ kontaktu, Cílová skupina, counts) come from
 // JOURNAL_DEFAULTS on the server.
 export async function POST(request: Request) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   const eventStart = typeof body?.eventStart === "string" ? body.eventStart : "";
   const eventEnd = typeof body?.eventEnd === "string" ? body.eventEnd : eventStart;
   const contactName = typeof body?.contactName === "string" ? body.contactName : "";
+  const ownerGuid = typeof body?.ownerGuid === "string" ? body.ownerGuid : "";
 
   if (!contactGuid) return NextResponse.json({ error: "Missing contactGuid" }, { status: 400 });
   if (!note.trim()) return NextResponse.json({ error: "Missing note" }, { status: 400 });
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
         eventEnd,
         subject,
         journalType,
+        ownerGuid: ownerGuid || undefined,
       })
     );
 
