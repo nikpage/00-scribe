@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/eway/crypto";
 import { ewayLogin, ewayCall } from "@/lib/eway/client";
+import { getUsers, getContacts } from "@/lib/eway/journal";
 
 // GET /api/eway/diag — TEMPORARY introspection of the live eWay service.
 //
@@ -84,6 +85,16 @@ export async function GET(request: Request) {
       }
     }
     return NextResponse.json({ journalGuid, returnCode: got.returnCode, populated });
+  }
+
+  // TEMPORARY: ?overlap=1 — how many of the live staff also exist as Contacts,
+  // i.e. how often the merged picker shows the same person twice.
+  if (new URL(request.url).searchParams.get("overlap") === "1") {
+    const [users, contacts] = await Promise.all([getUsers(session), getContacts(session)]);
+    const fold = (x: string) => x.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const contactNames = new Set(contacts.map((c) => fold(c.name)));
+    const both = users.filter((u) => contactNames.has(fold(u.name))).map((u) => u.name);
+    return NextResponse.json({ staff: users.length, alsoContacts: both.length, both });
   }
 
   // If ?defs=journal is given, return the additional-field definitions that
