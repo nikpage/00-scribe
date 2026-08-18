@@ -200,23 +200,15 @@ export async function getUsers(session: string): Promise<ContactOption[]> {
 }
 
 // Many staff are in eWay twice: once as a User (work address) and once as a
-// Contact. Where the two are clearly the same person, the picker shows only
-// the staff row, since that is what a visit gets filed against. "Clearly the
-// same" = same name AND the contact either carries the same email or none at
-// all. A same-named contact with a different email is left alone — it may be a
-// real namesake, or that person in a genuinely separate role.
+// Contact (their private one). The picker shows one row per person — the staff
+// one, since that is what a visit gets filed against. Matched by name, so a
+// client who happens to share an employee's exact name would be hidden too.
 export function mergePeople(
   contacts: ContactOption[],
   users: ContactOption[]
 ): ContactOption[] {
-  const staffEmailByName = new Map(users.map((u) => [fold(u.name), (u.email ?? "").trim().toLowerCase()]));
-  const duplicate = (c: ContactOption) => {
-    const staffEmail = staffEmailByName.get(fold(c.name));
-    if (staffEmail === undefined) return false; // no staff member of that name
-    const contactEmail = (c.email ?? "").trim().toLowerCase();
-    return contactEmail === "" || contactEmail === staffEmail;
-  };
-  return [...users, ...contacts.filter((c) => !duplicate(c))];
+  const staffNames = new Set(users.map((u) => fold(u.name)));
+  return [...users, ...contacts.filter((c) => !staffNames.has(fold(c.name)))];
 }
 
 // Filter an already-loaded contact list by a typed query: every word (in any
