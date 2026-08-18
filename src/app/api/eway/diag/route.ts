@@ -93,7 +93,19 @@ export async function GET(request: Request) {
     const [users, contacts] = await Promise.all([getUsers(session), getContacts(session)]);
     const fold = (x: string) => x.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
     const contactNames = new Set(contacts.map((c) => fold(c.name)));
-    const both = users.filter((u) => contactNames.has(fold(u.name))).map((u) => u.name);
+    const byName = new Map(contacts.map((c) => [fold(c.name), c]));
+    const both = users
+      .filter((u) => contactNames.has(fold(u.name)))
+      .map((u) => {
+        const c = byName.get(fold(u.name));
+        return {
+          name: u.name,
+          staffEmail: u.email,
+          contactEmail: c?.email ?? null,
+          sameEmail:
+            !!u.email && !!c?.email && u.email.trim().toLowerCase() === c.email.trim().toLowerCase(),
+        };
+      });
     return NextResponse.json({ staff: users.length, alsoContacts: both.length, both });
   }
 
