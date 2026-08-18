@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
-import { getContacts, getUsers, filterContacts, type ContactOption } from "@/lib/eway/journal";
+import {
+  getContacts,
+  getUsers,
+  mergePeople,
+  filterContacts,
+  type ContactOption,
+} from "@/lib/eway/journal";
 
 // GET /api/eway/contacts?q=<name> — search the worker's eWay people by name:
 // both Contacts (clients) and Users (colleagues), in one merged list. Each
@@ -26,7 +32,7 @@ export async function GET(request: Request) {
       const [contacts, users] = await callEwayWithSessionRetry(sess, (session) =>
         Promise.all([getContacts(session), getUsers(session)])
       );
-      entry = { contacts: [...contacts, ...users], expires: Date.now() + TTL_MS };
+      entry = { contacts: mergePeople(contacts, users), expires: Date.now() + TTL_MS };
       cache.set(sess.userId, entry);
     }
     return NextResponse.json(

@@ -199,6 +199,18 @@ export async function getUsers(session: string): Promise<ContactOption[]> {
     .filter((u) => u.guid && u.name);
 }
 
+// Many staff are in eWay twice: once as a User (work address) and once as a
+// Contact (their private one). The picker shows one row per person — the staff
+// one, since that is what a visit gets filed against. Matched by name, so a
+// client who happens to share an employee's exact name would be hidden too.
+export function mergePeople(
+  contacts: ContactOption[],
+  users: ContactOption[]
+): ContactOption[] {
+  const staffNames = new Set(users.map((u) => fold(u.name)));
+  return [...users, ...contacts.filter((c) => !staffNames.has(fold(c.name)))];
+}
+
 // Filter an already-loaded contact list by a typed query: every word (in any
 // order, accent-free) must appear in the name. Cheap, runs locally.
 export function filterContacts(contacts: ContactOption[], query: string): ContactOption[] {
