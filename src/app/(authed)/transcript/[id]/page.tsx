@@ -17,6 +17,7 @@ interface Recording {
   transcript: { utterances: { speaker: string; text: string }[] } | null;
   speakers: Record<string, string>;
   eway_contact_guid: string | null;
+  eway_contact_type: "contact" | "user" | null;
   eway_contact_name: string | null;
   kind: "interview" | "worker_notes";
 }
@@ -34,7 +35,7 @@ export default function TranscriptPage() {
     async function load() {
       const { data } = await supabase
         .from("recordings")
-        .select("id, label, filename, recorded_at, duration_seconds, transcript, speakers, eway_contact_guid, eway_contact_name, kind")
+        .select("id, label, filename, recorded_at, duration_seconds, transcript, speakers, eway_contact_guid, eway_contact_name, eway_contact_type, kind")
         .eq("id", id)
         .single();
 
@@ -101,6 +102,7 @@ export default function TranscriptPage() {
         initialNote={recording.transcript.utterances.map((u) => u.text).join("\n")}
         initialContactGuid={recording.eway_contact_guid}
         initialContactName={recording.eway_contact_name}
+        initialContactType={recording.eway_contact_type}
       />
 
       {recording.kind !== "worker_notes" && (

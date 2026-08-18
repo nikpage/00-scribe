@@ -271,6 +271,9 @@ const translations = {
     ewayJournalNoContact: "Nejprve vyberte kontakt.",
     ewayJournalNoResults: "Žádné kontakty",
     ewayJournalSearching: "Hledání…",
+    ewayJournalPersonSearch: "Hledat klienta nebo zaměstnance podle jména…",
+    ewayJournalStaff: "Zaměstnanec",
+    ewayJournalLinkFailed: "Deník se uložil, ale osobu se nepodařilo připojit.",
   },
   en: {
     appName: "Scribe",
@@ -533,6 +536,9 @@ const translations = {
     ewayJournalNoContact: "Pick a contact first.",
     ewayJournalNoResults: "No contacts",
     ewayJournalSearching: "Searching…",
+    ewayJournalPersonSearch: "Search client or staff by name…",
+    ewayJournalStaff: "Staff",
+    ewayJournalLinkFailed: "The journal saved, but the person could not be linked.",
   },
 } as const;
 

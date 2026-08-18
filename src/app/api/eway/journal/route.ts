@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
-import { saveJournal, JOURNAL_TYPES, type JournalTypeName } from "@/lib/eway/journal";
+import {
+  saveJournal,
+  isPersonType,
+  JOURNAL_TYPES,
+  type JournalTypeName,
+  type PersonType,
+} from "@/lib/eway/journal";
 import { logAudit } from "@/lib/audit";
 
 // POST /api/eway/journal — save a contact visit into eWay as a Journal.
 //
 // Body: { contactGuid, note, eventStart, eventEnd?, subject?, journalType? }
-//   contactGuid  the eWay contact picked by the worker
+//   contactGuid  the eWay person picked by the worker
+//   contactType  "contact" (a client) | "user" (a colleague) — which eWay
+//                module contactGuid belongs to; defaults to "contact"
 //   note         the transcribed notes -> Poznámka
 //   eventStart   ISO datetime of the visit (date = today, time from phone)
 //   eventEnd     optional ISO end; defaults to eventStart
@@ -23,6 +31,7 @@ export async function POST(request: Request) {
   const eventStart = typeof body?.eventStart === "string" ? body.eventStart : "";
   const eventEnd = typeof body?.eventEnd === "string" ? body.eventEnd : eventStart;
   const contactName = typeof body?.contactName === "string" ? body.contactName : "";
+  const contactType: PersonType = isPersonType(body?.contactType) ? body.contactType : "contact";
 
   if (!contactGuid) return NextResponse.json({ error: "Missing contactGuid" }, { status: 400 });
   if (!note.trim()) return NextResponse.json({ error: "Missing note" }, { status: 400 });
@@ -41,6 +50,7 @@ export async function POST(request: Request) {
     const result = await callEwayWithSessionRetry(sess, (session) =>
       saveJournal(session, {
         contactGuid,
+        contactType,
         contactName,
         note,
         eventStart,
@@ -60,6 +70,19 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return NextResponse.json(
         { error: result.description ?? result.returnCode, ...result },
+        { status: 502 }
+      );
+    }
+    // The journal itself saved, but without the person link it lands in eWay
+    // with an empty Contact Person — never report that as a success.
+    if (!result.contactLinked) {
+      return NextResponse.json(
+        {
+          ...result,
+          ok: false,
+          error: result.relation?.description ?? result.relation?.returnCode ?? "link_failed",
+          linkFailed: true,
+        },
         { status: 502 }
       );
     }

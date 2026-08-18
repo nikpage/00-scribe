@@ -6,6 +6,7 @@ import { generateFilename } from "@/lib/filename";
 import { saveChunk, getAllChunks, clearChunks, saveRecordingBlob } from "@/lib/audio-store";
 import { useLang } from "@/hooks/use-lang";
 import { useKeepAliveWhile } from "@/hooks/use-idle";
+import { LigaMark } from "@/components/liga-mark";
 import {
   JOURNAL_TYPES,
   type JournalTypeName,
@@ -30,7 +31,13 @@ function readRecordParams(): {
 type RecordingState = "idle" | "recording" | "saving";
 
 type ClientSuggestion = { id: string; name: string; address: string | null };
-type EwayContact = { guid: string; name: string; email: string | null };
+type EwayContact = {
+  guid: string;
+  name: string;
+  email: string | null;
+  // "contact" = an eWay client, "user" = a colleague from the staff list.
+  type: "contact" | "user";
+};
 
 export default function RecordPage() {
   const [label, setLabel] = useState("");
@@ -38,6 +45,7 @@ export default function RecordPage() {
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   // eWay contact chosen up front for a notes recording (the journal's contact).
   const [contactGuid, setContactGuid] = useState<string | null>(null);
+  const [contactType, setContactType] = useState<"contact" | "user">("contact");
   const [contactResults, setContactResults] = useState<EwayContact[]>([]);
   const [contactSearching, setContactSearching] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -195,6 +203,7 @@ export default function RecordPage() {
 
   function pickContact(c: EwayContact) {
     setContactGuid(c.guid);
+    setContactType(c.type);
     setLabel(c.name);
     setContactResults([]);
     setContactOpen(false);
@@ -335,6 +344,7 @@ export default function RecordPage() {
           parent_recording_id: parentRecordingId,
           eway_contact_guid: contactGuid,
           eway_contact_name: contactGuid ? label.trim() : null,
+          eway_contact_type: contactType,
         }),
       });
 
@@ -382,6 +392,7 @@ export default function RecordPage() {
           parent_recording_id: parentRecordingId,
           eway_contact_guid: contactGuid,
           eway_contact_name: contactGuid ? label.trim() : null,
+          eway_contact_type: contactType,
         }),
       });
 
@@ -446,19 +457,26 @@ export default function RecordPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder={t("ewayJournalContactSearch")}
+                  placeholder={t("ewayJournalPersonSearch")}
                   value={label}
                   onChange={(e) => {
                     setLabel(e.target.value);
                     setContactGuid(null);
+                    setContactType("contact");
                   }}
                   onFocus={() => contactResults.length > 0 && setContactOpen(true)}
                   className="w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
                   autoComplete="off"
                 />
                 {contactGuid && (
-                  <span className="mt-1 inline-block text-xs text-green-600 dark:text-green-400">
+                  <span className="mt-1 inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                     ✓ {label}
+                    {contactType === "user" && (
+                      <>
+                        <LigaMark className="h-3.5 w-3.5" />
+                        <span className="text-muted-foreground">{t("ewayJournalStaff")}</span>
+                      </>
+                    )}
                   </span>
                 )}
                 {contactOpen && !contactGuid && (
@@ -479,7 +497,10 @@ export default function RecordPage() {
                           onClick={() => pickContact(c)}
                           className="block w-full px-4 py-3 text-left text-sm hover:bg-muted"
                         >
-                          <div className="font-medium">{c.name}</div>
+                          <div className="flex items-center gap-2 font-medium">
+                            {c.type === "user" && <LigaMark className="h-4 w-4 shrink-0" />}
+                            <span>{c.name}</span>
+                          </div>
                           {c.email && (
                             <div className="text-xs text-muted-foreground">{c.email}</div>
                           )}

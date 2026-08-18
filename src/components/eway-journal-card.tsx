@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useEwayAttention } from "@/components/app-shell";
+import { LigaMark } from "@/components/liga-mark";
 import {
   JOURNAL_TYPES,
   type JournalTypeName,
@@ -14,6 +15,8 @@ interface ContactOption {
   guid: string;
   name: string;
   email: string | null;
+  // "contact" = an eWay client, "user" = a colleague from the staff list.
+  type: "contact" | "user";
 }
 
 interface EwayJournalCardProps {
@@ -27,6 +30,7 @@ interface EwayJournalCardProps {
   // it's pre-selected and no search is needed.
   initialContactGuid?: string | null;
   initialContactName?: string | null;
+  initialContactType?: "contact" | "user" | null;
 }
 
 function pad(n: number) {
@@ -39,6 +43,7 @@ export function EwayJournalCard({
   recordedAt,
   initialContactGuid,
   initialContactName,
+  initialContactType,
 }: EwayJournalCardProps) {
   const { lang, t } = useLang();
   const ewayAttention = useEwayAttention();
@@ -46,7 +51,12 @@ export function EwayJournalCard({
 
   // Contact: pre-selected from the record screen when we have its GUID.
   const seededContact: ContactOption | null = initialContactGuid
-    ? { guid: initialContactGuid, name: initialContactName || clientName, email: null }
+    ? {
+        guid: initialContactGuid,
+        name: initialContactName || clientName,
+        email: null,
+        type: initialContactType === "user" ? "user" : "contact",
+      }
     : null;
   const [query, setQuery] = useState(seededContact?.name ?? clientName);
   const [results, setResults] = useState<ContactOption[]>([]);
@@ -140,6 +150,7 @@ export function EwayJournalCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contactGuid: picked.guid,
+          contactType: picked.type,
           contactName: picked.name,
           note,
           eventStart: start.toISOString(),
@@ -155,6 +166,10 @@ export function EwayJournalCard({
       const data = await res.json();
       if (res.ok && data.ok) {
         setStatus({ ok: true, msg: t("ewayJournalSaved") });
+      } else if (data.linkFailed) {
+        // The journal exists in eWay but with no person attached — say so
+        // rather than letting a half-saved record look like a success.
+        setStatus({ ok: false, msg: t("ewayJournalLinkFailed") });
       } else {
         setStatus({ ok: false, msg: data.error || t("ewayJournalFailed") });
       }
@@ -202,7 +217,7 @@ export function EwayJournalCard({
             setPicked(null);
           }}
           onFocus={() => results.length && setOpen(true)}
-          placeholder={t("ewayJournalContactSearch")}
+          placeholder={t("ewayJournalPersonSearch")}
           autoComplete="off"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
         />
@@ -219,10 +234,11 @@ export function EwayJournalCard({
                 <button
                   type="button"
                   onClick={() => choose(c)}
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
                 >
-                  {c.name}
-                  {c.email && <span className="ml-2 text-xs text-muted-foreground">{c.email}</span>}
+                  {c.type === "user" && <LigaMark className="h-4 w-4 shrink-0" />}
+                  <span>{c.name}</span>
+                  {c.email && <span className="text-xs text-muted-foreground">{c.email}</span>}
                 </button>
               </li>
             ))}

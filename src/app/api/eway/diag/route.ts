@@ -86,6 +86,85 @@ export async function GET(request: Request) {
     return NextResponse.json({ journalGuid, returnCode: got.returnCode, populated });
   }
 
+  // TEMPORARY (staff-link verification, remove once confirmed):
+  //   ?staff=1                  -> the filtered staff list we would show
+  //   ?stafflink=<userItemGUID> -> create a throwaway Journal and try to link
+  //                                that eWay User as its Contact Person, so we
+  //                                can see whether eWay accepts FolderName2
+  //                                "Users". Delete the returned journal in eWay.
+  const params = new URL(request.url).searchParams;
+  if (params.get("staff") === "1") {
+    const got = await ewayCall(session, "GetUsers", {});
+    const all = Array.isArray(got.data) ? (got.data as Record<string, unknown>[]) : [];
+    return NextResponse.json({
+      returnCode: got.returnCode,
+      total: all.length,
+      keptCount: all.filter(
+        (u) => u.IsActive !== false && u.IsSystem !== true && u.IsApiUser !== true
+      ).length,
+      droppedNames: all
+        .filter((u) => u.IsActive === false || u.IsSystem === true || u.IsApiUser === true)
+        .map((u) => u.FileAs),
+      // One kept example, so ?stafflink= has a GUID to test with.
+      sample: all
+        .filter((u) => u.IsActive !== false && u.IsSystem !== true && u.IsApiUser !== true)
+        .slice(0, 1)
+        .map((u) => ({ guid: u.ItemGUID, name: u.FileAs })),
+    });
+  }
+  const staffLink = params.get("stafflink");
+  if (staffLink) {
+    const now = new Date();
+    const save = await ewayCall(session, "SaveJournal", {
+      transmitObject: {
+        FileAs: "Scribe diagnostika – vazba na uzivatele",
+        Subject: "Scribe diagnostika – vazba na uzivatele",
+        Note: "Docasny zaznam pro overeni vazby na modul Users. Smazat.",
+        EventStart: now.toISOString(),
+        EventEnd: now.toISOString(),
+      },
+      dieOnItemConflict: false,
+    });
+    const guidEntry = Object.entries((save.raw ?? {}) as Record<string, unknown>).find(
+      ([k, v]) => typeof v === "string" && /guid/i.test(k) && v.length > 0
+    );
+    const newGuid = guidEntry ? (guidEntry[1] as string) : null;
+    if (!save.ok || !newGuid) {
+      return NextResponse.json({ step: "SaveJournal", save }, { status: 502 });
+    }
+    const attempts: unknown[] = [];
+    for (const relationType of ["CONTACT", "GENERAL"]) {
+      const rel = await ewayCall(session, "SaveRelation", {
+        transmitObject: {
+          ItemGUID1: newGuid,
+          FolderName1: "Journal",
+          ItemGUID2: staffLink,
+          FolderName2: "Users",
+          RelationType: relationType,
+        },
+      });
+      attempts.push({
+        relationType,
+        ok: rel.ok,
+        returnCode: rel.returnCode,
+        description: rel.description,
+      });
+      if (rel.ok) break;
+    }
+    const back = await ewayCall(session, "GetJournalsByItemGuids", {
+      itemGuids: [newGuid],
+      includeRelations: true,
+      includeForeignKeys: true,
+    });
+    const rec = Array.isArray(back.data) ? (back.data[0] as Record<string, unknown>) : null;
+    return NextResponse.json({
+      createdJournalGuid: newGuid,
+      note: "Delete this journal in eWay once you have read the result.",
+      attempts,
+      relations: rec?.Relations ?? null,
+    });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová

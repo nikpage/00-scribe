@@ -117,10 +117,27 @@ function resolveEnumValue(
   return resolveEnumValueByType(session, ENUM_TYPE_BY_COLUMN[column], label);
 }
 
+// A person the worker can attach a journal to: either an eWay Contact
+// (a client) or an eWay User (a colleague from the staff list). Both are
+// searched in the same box, so they travel through the app as one type with
+// a flag saying which module the GUID belongs to.
+export type PersonType = "contact" | "user";
+
+export function isPersonType(v: unknown): v is PersonType {
+  return v === "contact" || v === "user";
+}
+
+// eWay folder name (module) each person type lives in — used for relations.
+export const PERSON_FOLDER: Record<PersonType, string> = {
+  contact: "Contacts",
+  user: "Users",
+};
+
 export interface ContactOption {
   guid: string;
   name: string;
   email: string | null;
+  type: PersonType;
 }
 
 // Fold diacritics and lowercase so "kolacek" matches "Koláček" — Czech names
@@ -140,9 +157,38 @@ export async function getContacts(session: string): Promise<ContactOption[]> {
       const last = str(c, "LastName") ?? "";
       const fileAs = str(c, "FileAs") ?? "";
       const name = last && first ? `${last}, ${first}` : fileAs || last || first;
-      return { guid: str(c, "ItemGUID") ?? "", name, email: str(c, "Email1Address") };
+      return {
+        guid: str(c, "ItemGUID") ?? "",
+        name,
+        email: str(c, "Email1Address"),
+        type: "contact" as const,
+      };
     })
     .filter((c) => c.guid && c.name);
+}
+
+// Pull the staff list (eWay Users) the same way, once per worker. Deactivated
+// accounts (IsActive false) and technical ones (IsSystem / IsApiUser — the
+// service accounts eWay creates for integrations, this app included) are left
+// out: a worker must never be able to file a visit against them.
+export async function getUsers(session: string): Promise<ContactOption[]> {
+  const res = await ewayCall(session, "GetUsers", {});
+  return asArray(res.data)
+    .filter((u) => u.IsActive !== false && u.IsSystem !== true && u.IsApiUser !== true)
+    .map((u) => {
+      const first = str(u, "FirstName") ?? "";
+      const last = str(u, "LastName") ?? "";
+      const fileAs = str(u, "FileAs") ?? "";
+      const name =
+        last && first ? `${last}, ${first}` : fileAs || last || first || str(u, "Username") || "";
+      return {
+        guid: str(u, "ItemGUID") ?? "",
+        name,
+        email: str(u, "Email1Address"),
+        type: "user" as const,
+      };
+    })
+    .filter((u) => u.guid && u.name);
 }
 
 // Filter an already-loaded contact list by a typed query: every word (in any
@@ -184,6 +230,7 @@ async function resolveSuperiorItem(
 
 export interface SaveJournalInput {
   contactGuid: string;
+  contactType?: PersonType; // which module the GUID lives in; defaults to "contact"
   contactName?: string; // "Surname, First" — used to build the subject
   note: string; // transcribed notes -> Poznámka
   eventStart: string; // ISO
@@ -296,7 +343,9 @@ export async function saveJournal(
           ItemGUID1: journalGuid,
           FolderName1: "Journal",
           ItemGUID2: input.contactGuid,
-          FolderName2: "Contacts",
+          // Staff picks are eWay Users, not Contacts — the relation has to
+          // point at the module the GUID actually lives in.
+          FolderName2: PERSON_FOLDER[input.contactType ?? "contact"],
           RelationType: "CONTACT",
         },
       });

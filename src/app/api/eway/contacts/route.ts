@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getEwaySessionForCurrentUser, callEwayWithSessionRetry } from "@/lib/eway/session";
-import { getContacts, filterContacts, type ContactOption } from "@/lib/eway/journal";
+import { getContacts, getUsers, filterContacts, type ContactOption } from "@/lib/eway/journal";
 
-// GET /api/eway/contacts?q=<name> — search the worker's eWay contacts by name.
+// GET /api/eway/contacts?q=<name> — search the worker's eWay people by name:
+// both Contacts (clients) and Users (colleagues), in one merged list. Each
+// entry carries a `type` flag saying which module it came from.
 //
-// eWay is slow, so we pull the full contact list once per worker and cache it for
+// eWay is slow, so we pull both full lists once per worker and cache them for
 // a few minutes; each keystroke filters that cached list locally instead of
 // hitting eWay again.
 const TTL_MS = 5 * 60 * 1000;
@@ -21,10 +23,10 @@ export async function GET(request: Request) {
   try {
     let entry = cache.get(sess.userId);
     if (refresh || !entry || entry.expires < Date.now()) {
-      entry = {
-        contacts: await callEwayWithSessionRetry(sess, (session) => getContacts(session)),
-        expires: Date.now() + TTL_MS,
-      };
+      const [contacts, users] = await callEwayWithSessionRetry(sess, (session) =>
+        Promise.all([getContacts(session), getUsers(session)])
+      );
+      entry = { contacts: [...contacts, ...users], expires: Date.now() + TTL_MS };
       cache.set(sess.userId, entry);
     }
     return NextResponse.json(
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
     );
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Contact search failed" },
+      { error: err instanceof Error ? err.message : "Person search failed" },
       { status: 502 }
     );
   }
