@@ -167,6 +167,11 @@ export async function getContacts(session: string): Promise<ContactOption[]> {
     .filter((c) => c.guid && c.name);
 }
 
+// Accounts that are eWay Users but not people — they carry none of the system
+// flags, so they have to be named. Matched accent- and case-insensitively
+// against both FileAs and the built "Surname, First" name.
+const NON_PERSON_USERS = ["keloc, keloc", "Spusteni prepoctu nahradniho volna"];
+
 // Pull the staff list (eWay Users) the same way, once per worker. Deactivated
 // accounts (IsActive false) and technical ones (IsSystem / IsApiUser — the
 // service accounts eWay creates for integrations, this app included) are left
@@ -181,8 +186,11 @@ export async function getUsers(session: string): Promise<ContactOption[]> {
       const fileAs = str(u, "FileAs") ?? "";
       const name =
         last && first ? `${last}, ${first}` : fileAs || last || first || str(u, "Username") || "";
+      const excluded = NON_PERSON_USERS.some(
+        (n) => fold(n) === fold(name) || fold(n) === fold(fileAs)
+      );
       return {
-        guid: str(u, "ItemGUID") ?? "",
+        guid: excluded ? "" : str(u, "ItemGUID") ?? "",
         name,
         email: str(u, "Email1Address"),
         type: "user" as const,
