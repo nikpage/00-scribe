@@ -99,17 +99,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       returnCode: got.returnCode,
       total: all.length,
-      keptCount: all.filter(
-        (u) => u.IsActive !== false && u.IsSystem !== true && u.IsApiUser !== true
-      ).length,
-      droppedNames: all
-        .filter((u) => u.IsActive === false || u.IsSystem === true || u.IsApiUser === true)
-        .map((u) => u.FileAs),
-      // One kept example, so ?stafflink= has a GUID to test with.
-      sample: all
+      kept: all
         .filter((u) => u.IsActive !== false && u.IsSystem !== true && u.IsApiUser !== true)
-        .slice(0, 1)
-        .map((u) => ({ guid: u.ItemGUID, name: u.FileAs })),
+        .map((u) => u.FileAs),
     });
   }
   const staffLink = params.get("stafflink");
