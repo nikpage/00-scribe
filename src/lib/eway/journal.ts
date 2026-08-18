@@ -134,29 +134,15 @@ function fold(s: string): string {
 // name is "Surname, First" so duplicates are clear.
 export async function getContacts(session: string): Promise<ContactOption[]> {
   const res = await ewayCall(session, "GetContacts", {});
-  return asArray(res.data).map(toPersonOption).filter((c) => c.guid && c.name);
-}
-
-// Contacts and Users carry the same name/email columns, so one mapper serves
-// both lists.
-function toPersonOption(p: Record<string, unknown>): ContactOption {
-  const first = str(p, "FirstName") ?? "";
-  const last = str(p, "LastName") ?? "";
-  const fileAs = str(p, "FileAs") ?? "";
-  const name = last && first ? `${last}, ${first}` : fileAs || last || first;
-  return { guid: str(p, "ItemGUID") ?? "", name, email: str(p, "Email1Address") };
-}
-
-// Employees are eWay's Users module (GetUsers) — a different list from Contacts.
-// Deactivated and API-only accounts are dropped: neither is a person a worker
-// would name as responsible for a visit.
-export async function getEmployees(session: string): Promise<ContactOption[]> {
-  const res = await ewayCall(session, "GetUsers", {});
   return asArray(res.data)
-    .filter((u) => u.IsActive !== false && u.IsApiUser !== true)
-    .map(toPersonOption)
-    .filter((u) => u.guid && u.name)
-    .sort((a, b) => a.name.localeCompare(b.name, "cs"));
+    .map((c) => {
+      const first = str(c, "FirstName") ?? "";
+      const last = str(c, "LastName") ?? "";
+      const fileAs = str(c, "FileAs") ?? "";
+      const name = last && first ? `${last}, ${first}` : fileAs || last || first;
+      return { guid: str(c, "ItemGUID") ?? "", name, email: str(c, "Email1Address") };
+    })
+    .filter((c) => c.guid && c.name);
 }
 
 // Filter an already-loaded contact list by a typed query: every word (in any
@@ -204,7 +190,6 @@ export interface SaveJournalInput {
   eventEnd: string; // ISO
   subject?: string; // explicit subject overrides the generated one
   journalType?: JournalTypeName; // "SOR" | "Poradna" — defaults to JOURNAL_DEFAULTS.type
-  ownerGuid?: string; // eWay user (employee) responsible for the visit
 }
 
 // Subject is "<contact last name>: <brief AI summary of the note>". The picked
@@ -280,9 +265,6 @@ export async function saveJournal(
     EventEnd: input.eventEnd,
     AdditionalFields: additionalFields,
   };
-  // The responsible employee is a plain column on the journal (a Users GUID),
-  // not a relation.
-  if (input.ownerGuid) transmitObject.OwnerGUID = input.ownerGuid;
   // Standard Journal "Type" (the dropdown at the top) is stored in TypeEn.
   if (journalTypeGuid) transmitObject.TypeEn = journalTypeGuid;
   // Workflow status (the "Nahráno AI" stage) is stored in StateEn.

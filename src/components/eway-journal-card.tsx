@@ -74,31 +74,6 @@ export function EwayJournalCard({
     storeJournalType(next);
   }
 
-  // Employees (eWay users) — a short list, so one fetch and a plain dropdown.
-  const [employees, setEmployees] = useState<ContactOption[]>([]);
-  const [employeeGuid, setEmployeeGuid] = useState("");
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/eway/employees");
-        if (!active) return;
-        if (res.status === 404) {
-          setNotConnected(true);
-          ewayAttention.flag();
-          return;
-        }
-        const data = await res.json();
-        if (active) setEmployees(Array.isArray(data.employees) ? data.employees : []);
-      } catch {
-        // Leaves the dropdown empty; saving without an employee still works.
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -169,7 +144,6 @@ export function EwayJournalCard({
           note,
           eventStart: start.toISOString(),
           journalType,
-          ownerGuid: employeeGuid,
         }),
       });
       if (res.status === 404) {
@@ -257,25 +231,6 @@ export function EwayJournalCard({
         {notConnected && (
           <p className="mt-1 text-xs text-destructive">{t("ewayNotConnectedHint")}</p>
         )}
-      </div>
-
-      {/* Employee (eWay user) */}
-      <div className="mb-3">
-        <label className="mb-1 block text-xs text-muted-foreground">
-          {t("ewayJournalEmployee")}
-        </label>
-        <select
-          value={employeeGuid}
-          onChange={(e) => setEmployeeGuid(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-        >
-          <option value="">{t("ewayJournalEmployeeNone")}</option>
-          {employees.map((emp) => (
-            <option key={emp.guid} value={emp.guid}>
-              {emp.name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Date (today) + editable time */}

@@ -103,38 +103,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ journalFields: fields });
   }
 
-  // If ?users=1 is given, list the eWay users (the Employees module) plus the
-  // additional-field definitions whose ObjectTypeFolderName mentions users — the
-  // folder-name string is what SaveRelation needs, and it can only be read from
-  // the live instance.
-  if (new URL(request.url).searchParams.get("users") === "1") {
-    const got = await ewayCall(session, "GetUsers", {});
-    const users = (Array.isArray(got.data) ? (got.data as Record<string, unknown>[]) : []).map(
-      (u) => ({
-        ItemGUID: u.ItemGUID,
-        FileAs: u.FileAs,
-        Username: u.Username,
-        JobTitle: u.JobTitle,
-        IsActive: u.IsActive,
-      })
-    );
-    const af = await ewayCall(session, "GetAdditionalFields", {});
-    const folderNames = [
-      ...new Set(
-        (Array.isArray(af.data) ? (af.data as Record<string, unknown>[]) : []).map((f) =>
-          String(f.ObjectTypeFolderName ?? "")
-        )
-      ),
-    ];
-    return NextResponse.json({
-      returnCode: got.returnCode,
-      description: got.description,
-      count: users.length,
-      users,
-      folderNames,
-    });
-  }
-
   // If ?contact=<name> is given, list EVERY matching contact with its Title
   // (job title) and whether our client filter would keep it — so we can see why
   // non-clients still show up.
