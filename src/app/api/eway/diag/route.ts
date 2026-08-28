@@ -109,6 +109,64 @@ export async function GET(request: Request) {
     return NextResponse.json({ staff: users.length, alsoContacts: both.length, both });
   }
 
+  // TEMPORARY: ?meetings=1 — discovery for the meeting-minutes feature.
+  // Lists the projects whose name looks like the minutes project ("porad"),
+  // the active users a task could be assigned to, and the Task object's own
+  // additional fields + the enum types behind Task Type/State, so the save
+  // path can be built against real GUIDs instead of guesses.
+  if (new URL(request.url).searchParams.get("meetings") === "1") {
+    const [projects, users, af, tasks] = await Promise.all([
+      ewayCall(session, "GetProjects", {}),
+      getUsers(session),
+      ewayCall(session, "GetAdditionalFields", {}),
+      ewayCall(session, "GetTasks", {}),
+    ]);
+
+    const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const allProjects = Array.isArray(projects.data)
+      ? (projects.data as Record<string, unknown>[])
+      : [];
+    const matching = allProjects
+      .filter((p) => fold(String(p.ProjectName ?? p.FileAs ?? "")).includes("porad"))
+      .map((p) => ({
+        guid: p.ItemGUID,
+        name: p.ProjectName ?? p.FileAs,
+        superior: p.Projects_SuperiorProjectGuid ?? null,
+        completed: p.IsCompleted ?? null,
+      }));
+
+    const taskFields = (Array.isArray(af.data) ? (af.data as Record<string, unknown>[]) : [])
+      .filter((f) => String(f.ObjectTypeFolderName ?? "").toLowerCase().includes("task"))
+      .map((f) => ({
+        ColumnName: f.ColumnName,
+        Name: f.Name,
+        Type: f.Type,
+        AssociatedEnumTypeGuid: f.AssociatedEnumTypeGuid,
+      }));
+
+    // One real task, populated fields only — shows how TypeEn/StateEn/solver
+    // are actually filled in this instance.
+    const sampleTask = (() => {
+      const rec = Array.isArray(tasks.data)
+        ? ((tasks.data as Record<string, unknown>[])[0] ?? null)
+        : null;
+      if (!rec) return null;
+      const populated: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rec)) {
+        if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) populated[k] = v;
+      }
+      return populated;
+    })();
+
+    return NextResponse.json({
+      projects: { total: allProjects.length, matching },
+      users: users.map((u) => ({ guid: u.guid, name: u.name, email: u.email })),
+      taskAdditionalFields: taskFields,
+      taskCount: Array.isArray(tasks.data) ? tasks.data.length : null,
+      sampleTask,
+    });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
