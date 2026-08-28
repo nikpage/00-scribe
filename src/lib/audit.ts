@@ -12,7 +12,8 @@ export type AuditAction =
   | "eway_connect"
   | "eway_disconnect"
   | "eway_test"
-  | "eway_journal_save";
+  | "eway_journal_save"
+  | "eway_meeting_save";
 
 export type AuditTargetType = "client" | "recording" | "worker" | "system";
 

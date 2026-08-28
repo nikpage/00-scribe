@@ -76,6 +76,34 @@ GUID and set `StateEn` on save. See `JOURNAL_WORKFLOW_ENUM` /
   with its own, differently-GUID'd copy of the same four stage names —
   don't reuse the SOR enum type GUID for Poradna records or vice versa.
 
+## Tasks (meeting assignments)
+
+`SaveTask` takes the foreign-key columns straight in `transmitObject` — no
+`SaveRelation` needed — so the solver and the parent project are set in the
+same call:
+
+- `Users_TaskSolverGuid` — the eWay User the task is for. This is what puts it
+  in that person's own task list; 3114 of 3116 live tasks have it set.
+- `Users_TaskDelegatorGuid`, `OwnerGUID` — left unset on save: eWay fills both
+  from the logged-in session, which is the note-taker.
+- `Projects_TaskParentGuid` / `Projects_TopLevelProjectGuid` — the project the
+  task hangs under.
+- Tasks carry **no** additional (`af_NN`) fields in this instance.
+
+Enum values confirmed live (note the grouping key on an enum value row is
+`EnumType`, *not* `EnumTypeGuid` — the journal code's fuzzy lookup covers both):
+
+- `TypeEn` "Úkol" / Task: `2aa21dd4-c3f3-4e87-b34f-1733f7226070`
+  (enum type `TaskType` `2ced2979-3a95-4964-b6df-2d94c49d3e80`)
+- `StateEn` "Nezahájeno" / NotStarted: `2ea5d749-dc1c-4d08-91ee-f7c0e393b415`
+  (enum type `Tasks_Task` `6644858b-f726-4fcd-a0a4-779562d440c2`;
+  "Dokončeno" is `0a35bb85-4596-4ad7-befb-0742d8e7cf4a`)
+- `ImportanceEn` "Střední" / Normal: `e49ad497-9cff-4fc0-a214-fa7c54a76f2f`
+
+Meeting minutes themselves are a plain Journal linked to the standing
+"Zápisy z porad" project (`f8c3120c-a2af-11f1-a019-8b0d307348be`) with the same
+`SUPERIORITEM` relation the visit journal uses. See `src/lib/eway/meeting.ts`.
+
 ## Env vars / secrets
 
 - `EWAY_SERVICE_URL`, `EWAY_ENC_KEY` (AES-256 key for encrypting saved
