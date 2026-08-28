@@ -109,6 +109,86 @@ export async function GET(request: Request) {
     return NextResponse.json({ staff: users.length, alsoContacts: both.length, both });
   }
 
+  // TEMPORARY: ?tasktest=1 — find which field SaveTask is refusing.
+  // Saves the same task four times, adding one group of fields each round, and
+  // returns eWay's raw answer for each. Creates real tasks (assigned to the
+  // caller, subject prefixed TEST-SCRIBE) — delete them in eWay afterwards.
+  if (new URL(request.url).searchParams.get("tasktest") === "1") {
+    const solver = new URL(request.url).searchParams.get("solver") ?? "";
+    if (!solver) {
+      return NextResponse.json({ error: "Pass ?solver=<eWay user guid>" }, { status: 400 });
+    }
+    const PROJECT = "f8c3120c-a2af-11f1-a019-8b0d307348be";
+    const base: Record<string, unknown> = {
+      FileAs: "TEST-SCRIBE 1 bare",
+      Subject: "TEST-SCRIBE 1 bare",
+      Users_TaskSolverGuid: solver,
+    };
+    const variants: { label: string; obj: Record<string, unknown> }[] = [
+      { label: "1-bare", obj: { ...base } },
+      {
+        label: "2-enums",
+        obj: {
+          ...base,
+          FileAs: "TEST-SCRIBE 2 enums",
+          Subject: "TEST-SCRIBE 2 enums",
+          TypeEn: "2aa21dd4-c3f3-4e87-b34f-1733f7226070",
+          StateEn: "2ea5d749-dc1c-4d08-91ee-f7c0e393b415",
+          ImportanceEn: "e49ad497-9cff-4fc0-a214-fa7c54a76f2f",
+          IsCompleted: false,
+        },
+      },
+      {
+        label: "3-project",
+        obj: {
+          ...base,
+          FileAs: "TEST-SCRIBE 3 project",
+          Subject: "TEST-SCRIBE 3 project",
+          TypeEn: "2aa21dd4-c3f3-4e87-b34f-1733f7226070",
+          StateEn: "2ea5d749-dc1c-4d08-91ee-f7c0e393b415",
+          ImportanceEn: "e49ad497-9cff-4fc0-a214-fa7c54a76f2f",
+          IsCompleted: false,
+          Projects_TaskParentGuid: PROJECT,
+          Projects_TopLevelProjectGuid: PROJECT,
+        },
+      },
+      {
+        label: "4-dates",
+        obj: {
+          ...base,
+          FileAs: "TEST-SCRIBE 4 dates",
+          Subject: "TEST-SCRIBE 4 dates",
+          Body: "TEST-SCRIBE body",
+          TypeEn: "2aa21dd4-c3f3-4e87-b34f-1733f7226070",
+          StateEn: "2ea5d749-dc1c-4d08-91ee-f7c0e393b415",
+          ImportanceEn: "e49ad497-9cff-4fc0-a214-fa7c54a76f2f",
+          IsCompleted: false,
+          Projects_TaskParentGuid: PROJECT,
+          Projects_TopLevelProjectGuid: PROJECT,
+          StartDate: "2026-08-28T00:00:00",
+          DueDate: "2026-09-04T00:00:00",
+        },
+      },
+    ];
+
+    const results = [];
+    for (const v of variants) {
+      const res = await ewayCall(session, "SaveTask", {
+        transmitObject: v.obj,
+        dieOnItemConflict: false,
+      });
+      results.push({
+        variant: v.label,
+        ok: res.ok,
+        returnCode: res.returnCode,
+        description: res.description,
+        raw: res.raw,
+      });
+      if (!res.ok) break; // the first refusal names the culprit group
+    }
+    return NextResponse.json({ results });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
