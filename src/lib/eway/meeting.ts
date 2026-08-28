@@ -75,6 +75,20 @@ export function meetingBody(input: SaveMeetingInput): string {
   return parts.filter(Boolean).join("\n\n");
 }
 
+
+// eWay reports a refused save in more than one place depending on why. Collect
+// whatever is populated rather than trusting Description alone.
+function describeFailure(res: { returnCode: string; description: string | null; raw: unknown }): string {
+  const parts: string[] = [];
+  if (res.description) parts.push(res.description);
+  const raw = res.raw as Record<string, unknown> | null;
+  const userErrors = raw?.UserErrorMessages ?? raw?.ErrorMessage;
+  if (Array.isArray(userErrors)) parts.push(...userErrors.map(String));
+  else if (typeof userErrors === "string" && userErrors) parts.push(userErrors);
+  if (!parts.length) parts.push(res.returnCode);
+  return parts.join("; ");
+}
+
 export async function saveMeeting(
   session: string,
   input: SaveMeetingInput
@@ -144,7 +158,9 @@ export async function saveMeeting(
       text: a.text,
       guid: findGuid(res.raw),
       ok: res.ok,
-      error: res.ok ? null : res.description ?? res.returnCode,
+      // eWay puts field-level complaints in UserErrorMessages / Description;
+      // keep whichever it actually filled so the cause isn't swallowed.
+      error: res.ok ? null : describeFailure(res),
     });
   }
 

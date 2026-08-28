@@ -98,7 +98,14 @@ export default function MeetingPage() {
         return;
       }
       if (!res.ok || !data.ok) {
-        setError(data.error || t("meetingSaveFailed"));
+        // Show eWay's own reason for each task it refused — the summary alone
+        // ("1 task didn't save") isn't enough to fix anything.
+        const failures: string[] = Array.isArray(data.tasks)
+          ? data.tasks
+              .filter((x: { ok?: boolean }) => x && x.ok === false)
+              .map((x: { text?: string; error?: string }) => `${x.text}: ${x.error ?? "?"}`)
+          : [];
+        setError([data.error || t("meetingSaveFailed"), ...failures].join(" — "));
         return;
       }
       localStorage.setItem(LAST_TEAM_KEY, teamId);
