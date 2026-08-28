@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Next.js runtime: builds App Router routes into Netlify Functions and runs
+# src/middleware.ts on Edge Functions. The middleware only refreshes the
+# Supabase cookie and sets security headers — it must never gate auth.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
