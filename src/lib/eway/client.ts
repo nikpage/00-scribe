@@ -17,6 +17,10 @@ export interface EwayLoginResult {
   returnCode: string;
   description: string | null;
   sessionId: string | null;
+  /** ItemGUID of the eWay user who logged in — LogIn returns it as
+   *  UserItemGuid. Needed because SaveTask refuses to insert without a
+   *  delegator, and the delegator is whoever is filing the task. */
+  userGuid: string | null;
 }
 
 function getServiceUrl(): string {
@@ -125,6 +129,7 @@ export async function ewayLogin(
       returnCode: `http_${res.status}`,
       description: `eWay returned HTTP ${res.status}`,
       sessionId: null,
+      userGuid: null,
     };
   }
 
@@ -153,5 +158,6 @@ export async function ewayLogin(
     returnCode,
     description: typeof data.Description === "string" ? data.Description : null,
     sessionId,
+    userGuid: typeof data.UserItemGuid === "string" && data.UserItemGuid ? data.UserItemGuid : null,
   };
 }

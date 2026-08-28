@@ -84,8 +84,12 @@ same call:
 
 - `Users_TaskSolverGuid` — the eWay User the task is for. This is what puts it
   in that person's own task list; 3114 of 3116 live tasks have it set.
-- `Users_TaskDelegatorGuid`, `OwnerGUID` — left unset on save: eWay fills both
-  from the logged-in session, which is the note-taker.
+- `Users_TaskDelegatorGuid` — **required on insert.** Leaving it out fails with
+  `rcParameterError: The Users_TaskDelegatorGuid field has to be filled when
+  inserting new item`. It is the person filing the task, so it comes from the
+  `UserItemGuid` that `LogIn` returns (surfaced as `ewayUserGuid` on the cached
+  session in `src/lib/eway/session.ts`). `OwnerGUID` *is* filled automatically
+  from the session and is left unset.
 - `Projects_TaskParentGuid` / `Projects_TopLevelProjectGuid` — the project the
   task hangs under.
 - Tasks carry **no** additional (`af_NN`) fields in this instance.

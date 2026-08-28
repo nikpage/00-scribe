@@ -47,6 +47,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nothing to save" }, { status: 400 });
   }
 
+  // eWay won't insert a task without a delegator, and the delegator is the
+  // worker filing it. LogIn returns their user GUID; without it, tasks would
+  // fail one by one after the minutes had already saved.
+  if (assignments.length && !sess.ewayUserGuid) {
+    return NextResponse.json(
+      { error: "eWay did not return your user id; reconnect eWay in settings." },
+      { status: 502 }
+    );
+  }
+
   try {
     const result = await callEwayWithSessionRetry(sess, (session) =>
       saveMeeting(session, {
@@ -55,6 +65,7 @@ export async function POST(request: Request) {
         date,
         notes,
         assignments,
+        delegatorGuid: sess.ewayUserGuid ?? "",
       })
     );
 

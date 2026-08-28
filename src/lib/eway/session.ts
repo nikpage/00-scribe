@@ -4,7 +4,7 @@ import { decryptSecret } from "@/lib/eway/crypto";
 import { ewayLogin, EwaySessionInvalidError } from "@/lib/eway/client";
 
 export type SessionResult =
-  | { ok: true; session: string; userId: string }
+  | { ok: true; session: string; userId: string; ewayUserGuid: string | null }
   | { ok: false; status: number; error: string };
 
 // eWay caps concurrent sessions per account, and nothing ever logs a session
@@ -12,7 +12,7 @@ export type SessionResult =
 // sessionId per worker (module-level, like the client-list cache in
 // contacts/route.ts) and only log in again when there's no cached entry or
 // the cached one turns out to be stale (see callEwayWithSessionRetry below).
-const sessionCache = new Map<string, string>();
+const sessionCache = new Map<string, { session: string; ewayUserGuid: string | null }>();
 
 export function invalidateEwaySession(userId: string): void {
   sessionCache.delete(userId);
@@ -55,8 +55,8 @@ async function loginFreshForUser(userId: string): Promise<SessionResult> {
     return { ok: false, status: 502, error: login.description ?? login.returnCode };
   }
 
-  sessionCache.set(userId, login.sessionId);
-  return { ok: true, session: login.sessionId, userId };
+  sessionCache.set(userId, { session: login.sessionId, ewayUserGuid: login.userGuid });
+  return { ok: true, session: login.sessionId, userId, ewayUserGuid: login.userGuid };
 }
 
 // Return a live eWay session id for the currently signed-in worker, reusing
@@ -69,7 +69,9 @@ export async function getEwaySessionForCurrentUser(): Promise<SessionResult> {
   if (!user) return { ok: false, status: 401, error: "Unauthorized" };
 
   const cached = sessionCache.get(user.id);
-  if (cached) return { ok: true, session: cached, userId: user.id };
+  if (cached) {
+    return { ok: true, session: cached.session, userId: user.id, ewayUserGuid: cached.ewayUserGuid };
+  }
 
   return loginFreshForUser(user.id);
 }

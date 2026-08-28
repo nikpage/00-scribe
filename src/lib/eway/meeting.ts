@@ -10,8 +10,10 @@ import { MEETINGS_PROJECT } from "./teams";
 //   - one Task per assignment, whose Solver is the person it was given to, so
 //     it shows up in that person's own task list in eWay/Outlook.
 //
-// Owner and delegator are deliberately not set: eWay fills both from the
-// logged-in session, which is the note-taker — exactly what we want.
+// The delegator is the note-taker: eWay refuses to insert a task without
+// Users_TaskDelegatorGuid (rcParameterError), so it comes from the eWay user
+// GUID that LogIn hands back for the signed-in worker. OwnerGUID is left unset
+// — eWay fills that from the session by itself.
 
 // Confirmed against the live instance (GetEnumValues, see docs/eway-api-notes).
 const TASK_TYPE_UKOL = "2aa21dd4-c3f3-4e87-b34f-1733f7226070"; // TaskType "Úkol"
@@ -37,6 +39,8 @@ export interface SaveMeetingInput {
   /** Free-text minutes as typed by the note-taker. */
   notes: string;
   assignments: MeetingAssignment[];
+  /** eWay user GUID of the note-taker; becomes each task's delegator. */
+  delegatorGuid: string;
 }
 
 export interface SaveMeetingResult {
@@ -148,6 +152,7 @@ export async function saveMeeting(
         ImportanceEn: TASK_IMPORTANCE_NORMAL,
         IsCompleted: false,
         Users_TaskSolverGuid: a.solverGuid,
+        Users_TaskDelegatorGuid: input.delegatorGuid,
         Projects_TaskParentGuid: MEETINGS_PROJECT.guid,
         Projects_TopLevelProjectGuid: MEETINGS_PROJECT.guid,
       },
