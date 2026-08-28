@@ -232,6 +232,34 @@ export async function GET(request: Request) {
     });
   }
 
+  // TEMPORARY: ?meetings=3 — name the enum values a new meeting task will use.
+  // The pass-2 lookup keyed on EnumTypeGuid and came back null, so dump every
+  // key of the matching rows instead and let the labels speak for themselves.
+  if (new URL(request.url).searchParams.get("meetings") === "3") {
+    const wanted = [
+      "2aa21dd4-c3f3-4e87-b34f-1733f7226070", // TypeEn on every sampled task
+      "2ea5d749-dc1c-4d08-91ee-f7c0e393b415", // StateEn on an open task
+      "0a35bb85-4596-4ad7-befb-0742d8e7cf4a", // StateEn on a completed task
+      "e49ad497-9cff-4fc0-a214-fa7c54a76f2f", // ImportanceEn on every task
+    ];
+    const enums = await ewayCall(session, "GetEnumValues", {});
+    const rows = Array.isArray(enums.data) ? (enums.data as Record<string, unknown>[]) : [];
+    const found = rows.filter((e) => wanted.includes(String(e.ItemGUID)));
+
+    // Whatever key groups values into a type, find it from the matched rows and
+    // list the siblings of the status value so we can see the full status list.
+    const typeKey = Object.keys(found[0] ?? {}).find((k) => /type/i.test(k) && /guid/i.test(k));
+    const statusRow = found.find((e) => e.ItemGUID === "2ea5d749-dc1c-4d08-91ee-f7c0e393b415");
+    const statusType = typeKey && statusRow ? String(statusRow[typeKey] ?? "") : "";
+    const statusSiblings = statusType
+      ? rows
+          .filter((e) => String(e[typeKey!] ?? "") === statusType)
+          .map((e) => ({ guid: e.ItemGUID, fileAs: e.FileAs, en: e.En, cz: e.Cz }))
+      : [];
+
+    return NextResponse.json({ typeKey: typeKey ?? null, found, statusSiblings });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
