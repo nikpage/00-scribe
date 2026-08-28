@@ -9,7 +9,7 @@ The Supabase session refresh middleware (`src/lib/supabase/middleware.ts`) was w
 - Protected pages redirect to login even when user just authenticated
 
 ### 2. CRITICAL: WebAuthn origin/rpID hardcoded to `localhost`
-`WEBAUTHN_RP_ID=localhost` and `WEBAUTHN_ORIGIN=http://localhost:3000` in env vars. On Vercel (`https://your-app.vercel.app`), WebAuthn verification always fails because:
+`WEBAUTHN_RP_ID=localhost` and `WEBAUTHN_ORIGIN=http://localhost:3000` in env vars. On Netlify (`https://your-app.netlify.app`), WebAuthn verification always fails because:
 - `expectedOrigin` doesn't match actual browser origin
 - `expectedRPID` doesn't match actual domain
 - Both passkey registration and login silently fail with "Verification failed"
@@ -30,7 +30,7 @@ Wire up the existing `updateSession()` function. Add `/api/webhook` and static a
 **File**: `src/middleware.ts` (new)
 
 ### Step 2: Auto-detect WebAuthn origin from request
-Instead of relying solely on env vars, derive `origin` and `rpID` from the incoming request's `Origin` or `Host` header. Fall back to env vars if headers missing. This makes the app work on localhost AND Vercel without changing env vars.
+Instead of relying solely on env vars, derive `origin` and `rpID` from the incoming request's `Origin` or `Host` header. Fall back to env vars if headers missing. This makes the app work on localhost AND Netlify without changing env vars.
 
 **Files**:
 - `src/app/api/auth/authenticate/route.ts` — use request origin
@@ -56,17 +56,17 @@ Add specific error details to auth API responses so mobile users (and console lo
 - `src/app/api/auth/register/route.ts`
 
 ### Step 6: Update `.env.example`
-Add `WEBHOOK_BASE_URL`, `GEMINI_API_KEY`, and comments about Vercel setup.
+Add `WEBHOOK_BASE_URL`, `GEMINI_API_KEY`, and comments about Netlify setup.
 
 ---
 
-## Vercel Setup Required (by user)
-After code changes, set these in Vercel Dashboard > Settings > Environment Variables:
-- `WEBAUTHN_RP_ID` = `your-app.vercel.app` (or custom domain)
-- `WEBAUTHN_ORIGIN` = `https://your-app.vercel.app`
-- `WEBHOOK_BASE_URL` = `https://your-app.vercel.app`
+## Netlify Setup Required (by user)
+After code changes, set these in Netlify: Site configuration > Environment variables:
+- `WEBAUTHN_RP_ID` = `your-app.netlify.app` (or custom domain)
+- `WEBAUTHN_ORIGIN` = `https://your-app.netlify.app`
+- `WEBHOOK_BASE_URL` = `https://your-app.netlify.app`
 - `GEMINI_API_KEY` = your key
 - All existing Supabase + AssemblyAI vars
 
 Also in **Supabase Dashboard** > Auth > URL Configuration:
-- Add `https://your-app.vercel.app/auth/callback` to Redirect URLs
+- Add `https://your-app.netlify.app/auth/callback` to Redirect URLs

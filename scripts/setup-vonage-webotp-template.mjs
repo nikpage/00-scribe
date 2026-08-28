@@ -1,7 +1,7 @@
 // One-off script: creates a Vonage Verify2 SMS template whose text ends
 // with the "@domain #code" suffix WebOTP requires to auto-fill the code on
 // Android Chrome. Run once, then put the printed template ID in
-// VONAGE_SMS_TEMPLATE_ID (local env + Vercel) so login/route reads use it.
+// VONAGE_SMS_TEMPLATE_ID (local env + Netlify) so login/route reads use it.
 //
 // Usage: node scripts/setup-vonage-webotp-template.mjs
 // Template management only accepts JWT Bearer auth (Basic auth with the
@@ -9,14 +9,14 @@
 // VONAGE_LIGA_SCRIBE_APPLICATION_ID + VONAGE_PRIVATE_KEY — the Vonage
 // Application's ID and private key, not the account API key/secret used
 // elsewhere in this repo. Also requires WEBOTP_DOMAIN (defaults to
-// 00-scribe.vercel.app — set this to your real production domain if
+// 00-scribe.netlify.app — set this to your real production domain if
 // different).
 
 import { Vonage } from "@vonage/server-sdk";
 
 const applicationId = process.env.VONAGE_LIGA_SCRIBE_APPLICATION_ID;
 const privateKey = process.env.VONAGE_PRIVATE_KEY;
-const domain = process.env.WEBOTP_DOMAIN || "00-scribe.vercel.app";
+const domain = process.env.WEBOTP_DOMAIN || "00-scribe.netlify.app";
 
 if (!applicationId || !privateKey) {
   console.error(

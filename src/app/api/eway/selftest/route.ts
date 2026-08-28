@@ -5,7 +5,7 @@ import { ewayCall } from "@/lib/eway/client";
 // GET /api/eway/selftest?user=<eway-username>&pass=<eway-password>
 //
 // One-shot live test. Logs in with the supplied eWay credentials (using the
-// EWAY_SERVICE_URL configured in Vercel), inserts a clearly-labelled test
+// EWAY_SERVICE_URL configured in Netlify), inserts a clearly-labelled test
 // Journal, then reads it back by its returned GUID. Nothing is stored — the
 // credentials are used only for this request. Returns yes/no plus the raw
 // eWay responses so we can see the real field codes.

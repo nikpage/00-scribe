@@ -34,7 +34,9 @@ There is no test runner wired up. Verify changes by `tsc --noEmit` + `lint` + ru
   `drive_text_id` DB columns are legacy names — they hold Supabase storage paths, not
   Google Drive file IDs. Google Drive is not used anywhere in this project.
 - **eWay-CRM** — `src/lib/eway/` (see below).
-- Deployed on Vercel (`00-scribe.vercel.app`).
+- Deployed on Netlify (`00-scribe.netlify.app`) via `netlify.toml` + the
+  `@netlify/plugin-nextjs` runtime (Netlify installs the plugin at build time; it is
+  intentionally not a package.json dependency).
 
 ## Layout
 

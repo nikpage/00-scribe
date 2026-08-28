@@ -14,7 +14,7 @@ transcribed and AI-summarized, and push the note straight into **eWay-CRM** as y
 - Supabase — Postgres + cookie-session auth + Realtime
 - WebAuthn passkeys (phone) + magic link (cross-device)
 - Google Drive storage · Gemini analysis · eWay-CRM integration
-- Deployed on Vercel
+- Deployed on Netlify
 
 ## Getting Started
 
@@ -36,4 +36,4 @@ stay disabled until an account is connected under the **eWay** tab.
 ## Project docs
 
 - `CLAUDE.md` — architecture, conventions, and gotchas for working in this repo.
-- `plan.md` — history of the Vercel/mobile login fixes.
+- `plan.md` — history of the deploy/mobile login fixes.

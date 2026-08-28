@@ -111,11 +111,12 @@ Meeting minutes themselves are a plain Journal linked to the standing
 ## Env vars / secrets
 
 - `EWAY_SERVICE_URL`, `EWAY_ENC_KEY` (AES-256 key for encrypting saved
-  worker passwords, see `src/lib/eway/crypto.ts`) live only in Vercel, marked
-  **Sensitive** — `vercel env pull` returns them as empty strings by design,
-  it cannot read sensitive values back. If you need to inspect live eWay
+  worker passwords, see `src/lib/eway/crypto.ts`) live only in Netlify's
+  environment variables (Site configuration → Environment variables), scoped to
+  the production context. `netlify env:pull` writes them into a local `.env` if
+  your account may read them back; secret values stay masked. If you need to inspect live eWay
   data locally, use the `diag` route pattern above (runs server-side on
-  Vercel where the real values are available) rather than trying to pull
+  Netlify where the real values are available) rather than trying to pull
   the secrets down.
 - Per-worker eWay username/password are stored encrypted in the
   `eway_credentials` Supabase table (`password_ciphertext`/`_iv`/`_tag`),
