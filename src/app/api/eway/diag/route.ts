@@ -167,6 +167,71 @@ export async function GET(request: Request) {
     });
   }
 
+  // TEMPORARY: ?meetings=2 — second pass. Reads a handful of recent tasks WITH
+  // foreign keys (to see how solver/delegator/project are really filled) and
+  // resolves the Task TypeEn/StateEn enum values to their labels, plus lists
+  // whatever already sits under the "Zapisy z porad" project.
+  const meetings2 = new URL(request.url).searchParams.get("meetings") === "2";
+  if (meetings2) {
+    const ZAPISY = "f8c3120c-a2af-11f1-a019-8b0d307348be";
+
+    const [tasks, enums, journals] = await Promise.all([
+      ewayCall(session, "GetTasks", { includeForeignKeys: true }),
+      ewayCall(session, "GetEnumValues", {}),
+      ewayCall(session, "GetJournals", { includeForeignKeys: true }),
+    ]);
+
+    const taskRows = Array.isArray(tasks.data) ? (tasks.data as Record<string, unknown>[]) : [];
+    const recent = [...taskRows]
+      .sort((a, b) => String(b.ItemCreated ?? "").localeCompare(String(a.ItemCreated ?? "")))
+      .slice(0, 3)
+      .map((rec) => {
+        const populated: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rec)) {
+          if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) populated[k] = v;
+        }
+        return populated;
+      });
+
+    // How often tasks are actually filed under a project at all.
+    const withProject = taskRows.filter((t) => t.Projects_TaskParentGuid || t.Projects_TopLevelProjectGuid).length;
+    const withSolver = taskRows.filter((t) => t.Users_TaskSolverGuid).length;
+
+    // Resolve the Task Type / State enums: find the value rows for the GUIDs the
+    // sample task uses, then list every sibling value of those enum types.
+    const enumRows = Array.isArray(enums.data) ? (enums.data as Record<string, unknown>[]) : [];
+    const typeOf = (valueGuid: string) => {
+      const row = enumRows.find((e) => e.ItemGUID === valueGuid);
+      const t = row ? String(row.EnumTypeGuid ?? "") : "";
+      return {
+        valueGuid,
+        label: row?.FileAs ?? row?.En ?? row?.Cz ?? null,
+        enumTypeGuid: t || null,
+        siblings: t
+          ? enumRows
+              .filter((e) => e.EnumTypeGuid === t)
+              .map((e) => ({ guid: e.ItemGUID, label: e.FileAs ?? e.En ?? e.Cz }))
+          : [],
+      };
+    };
+
+    const journalRows = Array.isArray(journals.data)
+      ? (journals.data as Record<string, unknown>[])
+      : [];
+    const underZapisy = journalRows
+      .filter((j) => j.Projects_SuperiorItemGuid === ZAPISY)
+      .slice(0, 5)
+      .map((j) => ({ guid: j.ItemGUID, fileAs: j.FileAs, created: j.ItemCreated }));
+
+    return NextResponse.json({
+      taskTotals: { total: taskRows.length, withProject, withSolver },
+      recentTasksWithFKs: recent,
+      taskTypeEnum: typeOf("2aa21dd4-c3f3-4e87-b34f-1733f7226070"),
+      taskStateEnum: typeOf("0a35bb85-4596-4ad7-befb-0742d8e7cf4a"),
+      journalsUnderZapisy: { count: journalRows.filter((j) => j.Projects_SuperiorItemGuid === ZAPISY).length, sample: underZapisy },
+    });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
