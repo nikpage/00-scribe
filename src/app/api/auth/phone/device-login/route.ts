@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhoneE164 } from "@/lib/phone";
-import { isDeviceTrusted } from "@/lib/device-trust";
 
 // POST /api/auth/phone/device-login — { phone }
-// If this device already proved itself once (OTP verify or account
-// creation), mint a session for the phone's existing account with no OTP
-// and no Vonage call. 401 if the device isn't trusted yet, so the client
-// falls back to the normal OTP flow.
+// Mints a session for the phone's existing account with no OTP and no
+// Vonage call.
 export async function POST(request: Request) {
   const { phone } = await request.json().catch(() => ({ phone: null }));
   if (typeof phone !== "string" || !phone.trim()) {
@@ -23,10 +20,6 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!profile) {
     return NextResponse.json({ error: "No account found for this number" }, { status: 404 });
-  }
-
-  if (!(await isDeviceTrusted(request, profile.id))) {
-    return NextResponse.json({ error: "Device not trusted" }, { status: 401 });
   }
 
   const { data: authUser, error: userErr } = await admin.auth.admin.getUserById(profile.id);
