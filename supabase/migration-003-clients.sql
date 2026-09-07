@@ -15,7 +15,8 @@ as $$
   );
 $$;
 
--- Normalize client names for matching: lowercase, strip commas, sort tokens.
+-- Normalize client names for matching: lowercase, strip commas, sort tokens so
+-- a name typed either way round matches the same client.
 -- Diacritics are preserved (Czech names rely on them).
 create or replace function public.normalize_client_name(input text)
 returns text
@@ -24,12 +25,15 @@ immutable
 as $$
   select array_to_string(
     array(
-      select tok from unnest(string_to_array(
+      select tok from unnest(regexp_split_to_array(
         regexp_replace(lower(coalesce(input, '')), ',', '', 'g'),
-        ' '
+        '\s+'
       )) tok
       where tok <> ''
-      order by tok
+      -- collate "C" is byte order, which for UTF-8 is code-point order, which is
+      -- what JS .sort() in src/lib/clients.ts does. Any other collation files c
+      -- before the accented forms and the two keys diverge.
+      order by tok collate "C"
     ),
     ' '
   );
