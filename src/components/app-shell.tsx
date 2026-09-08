@@ -34,7 +34,13 @@ export function useEwayAttention(): EwayAttention {
   return useContext(EwayAttentionContext);
 }
 
-type NavItem = { href: string; label: TranslationKey; icon: React.ReactNode };
+type NavItem = {
+  href: string;
+  label: TranslationKey;
+  icon: React.ReactNode;
+  /** Set apart from the rest of the nav by a gap and a rule above it. */
+  spacedAbove?: boolean;
+};
 
 const baseItems: NavItem[] = [
   {
@@ -75,6 +81,19 @@ const baseItems: NavItem[] = [
   },
 ];
 
+// Meeting minutes sit apart from the client-visit flow above them: same nav,
+// separated by a spacer, and open to everyone.
+const meetingItem: NavItem = {
+  href: "/meeting",
+  label: "meetings",
+  spacedAbove: true,
+  icon: (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 100-8 4 4 0 000 8zm7-4a3 3 0 100-6 3 3 0 000 6z" />
+    </svg>
+  ),
+};
+
 const managerItem: NavItem = {
   href: "/manager",
   label: "manager",
@@ -96,7 +115,9 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
     [needsEway],
   );
 
-  const items = user.isManager ? [...baseItems, managerItem] : baseItems;
+  const items = user.isManager
+    ? [...baseItems, managerItem, meetingItem]
+    : [...baseItems, meetingItem];
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
@@ -126,7 +147,7 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
                 <a
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
+                  className={`${item.spacedAbove ? "mt-4 border-t border-border pt-4 " : ""}flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                     isActive(item.href)
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted"

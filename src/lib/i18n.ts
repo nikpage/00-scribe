@@ -228,6 +228,7 @@ const translations = {
     recordPostSessionNotes: "Nahrát poznámky",
     postSessionNotesBadge: "Poznámky",
     // Meeting minutes (/meeting)
+    meetings: "Porady",
     meetingTitle: "Zápis z porady",
     meetingProject: "Projekt",
     meetingProjectsLoading: "Načítám projekty…",
@@ -517,6 +518,7 @@ const translations = {
     recordPostSessionNotes: "Record notes",
     postSessionNotesBadge: "Notes",
     // Meeting minutes (/meeting)
+    meetings: "Meetings",
     meetingTitle: "Meeting minutes",
     meetingProject: "Project",
     meetingProjectsLoading: "Loading projects…",
