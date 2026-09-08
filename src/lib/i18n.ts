@@ -229,7 +229,10 @@ const translations = {
     postSessionNotesBadge: "Poznámky",
     // Meeting minutes (/meeting)
     meetingTitle: "Zápis z porady",
-    meetingTeam: "Tým",
+    meetingProject: "Projekt",
+    meetingProjectsLoading: "Načítám projekty…",
+    meetingProjectsFailed: "Projekty se nepodařilo načíst",
+    meetingProjectMissing: "není v eWay",
     meetingTopic: "Téma",
     meetingDate: "Datum",
     meetingNotes: "Zápis",
@@ -515,7 +518,10 @@ const translations = {
     postSessionNotesBadge: "Notes",
     // Meeting minutes (/meeting)
     meetingTitle: "Meeting minutes",
-    meetingTeam: "Team",
+    meetingProject: "Project",
+    meetingProjectsLoading: "Loading projects…",
+    meetingProjectsFailed: "Could not load projects",
+    meetingProjectMissing: "not in eWay",
     meetingTopic: "Topic",
     meetingDate: "Date",
     meetingNotes: "Minutes",

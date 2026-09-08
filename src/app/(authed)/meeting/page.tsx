@@ -3,18 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useEwayAttention } from "@/components/app-shell";
-import { TEAMS, DEFAULT_TOPIC } from "@/lib/eway/teams";
+import { DEFAULT_TOPIC } from "@/lib/eway/teams";
+import type { MeetingProject } from "@/lib/eway/projects";
 
 // Meeting minutes. Deliberately off the main nav: most workers only ever
 // record client visits, and only note-takers come here (by URL).
 //
-// The whole screen is one form — team, topic, date, minutes, and a row per
+// The whole screen is one form — project, topic, date, minutes, and a row per
 // assignment. Nothing is transcribed or AI-extracted: the note-taker types,
-// and picking the person from the team's own member list *is* the assignment.
+// and picking the person from the project's own Tym *is* the assignment.
+//
+// Projects and their members come from eWay live (/api/eway/projects): the
+// picker and the save therefore share one source of truth for who exists.
 
 type Row = { key: number; solverGuid: string; text: string; due: string };
 
-const LAST_TEAM_KEY = "scribe.meeting.lastTeam";
+const LAST_PROJECT_KEY = "scribe.meeting.lastProject";
 
 function today(): string {
   // Local date, not UTC — a meeting at 9pm is still today's meeting.
@@ -33,7 +37,9 @@ export default function MeetingPage() {
   const { t } = useLang();
   const ewayAttention = useEwayAttention();
 
-  const [teamId, setTeamId] = useState(TEAMS[0]?.id ?? "");
+  const [projects, setProjects] = useState<MeetingProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectName, setProjectName] = useState("");
   const [topic, setTopic] = useState(DEFAULT_TOPIC);
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
@@ -42,13 +48,46 @@ export default function MeetingPage() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<{ tasks: number } | null>(null);
 
-  // The note-taker almost always writes for the same team; remember it.
+  // Load the projects and their Tym members, then select the one this
+  // note-taker used last — they almost always write for the same meeting.
   useEffect(() => {
-    const last = localStorage.getItem(LAST_TEAM_KEY);
-    if (last && TEAMS.some((x) => x.id === last)) setTeamId(last);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/eway/projects");
+        if (res.status === 404) {
+          ewayAttention.flag();
+          if (!cancelled) setError(t("ewayNotConnectedHint"));
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (!cancelled) setError(data.error || t("meetingProjectsFailed"));
+          return;
+        }
+        if (cancelled) return;
+        const list: MeetingProject[] = Array.isArray(data.projects) ? data.projects : [];
+        setProjects(list);
+        const last = localStorage.getItem(LAST_PROJECT_KEY);
+        const usable = list.filter((p) => p.guid);
+        const pick = usable.find((p) => p.name === last) ?? usable[0];
+        if (pick) setProjectName(pick.name);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : t("meetingProjectsFailed"));
+      } finally {
+        if (!cancelled) setProjectsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const team = useMemo(() => TEAMS.find((x) => x.id === teamId), [teamId]);
+  const project = useMemo(
+    () => projects.find((x) => x.name === projectName),
+    [projects, projectName]
+  );
 
   function updateRow(key: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -79,7 +118,7 @@ export default function MeetingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          teamId,
+          teamId: projectName,
           topic: topic.trim(),
           date,
           notes,
@@ -108,7 +147,7 @@ export default function MeetingPage() {
         setError([data.error || t("meetingSaveFailed"), ...failures].join(" — "));
         return;
       }
-      localStorage.setItem(LAST_TEAM_KEY, teamId);
+      localStorage.setItem(LAST_PROJECT_KEY, projectName);
       setSaved({ tasks: Array.isArray(data.tasks) ? data.tasks.length : 0 });
       setNotes("");
       setRows([blankRow()]);
@@ -129,18 +168,22 @@ export default function MeetingPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className={label} htmlFor="team">
-              {t("meetingTeam")}
+            <label className={label} htmlFor="project">
+              {t("meetingProject")}
             </label>
             <select
-              id="team"
+              id="project"
               className={field}
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
+              value={projectName}
+              disabled={projectsLoading}
+              onChange={(e) => setProjectName(e.target.value)}
             >
-              {TEAMS.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
+              {projectsLoading && <option value="">{t("meetingProjectsLoading")}</option>}
+              {projects.map((x) => (
+                // A name with no matching eWay project stays visible but
+                // unpickable — never silently filed against a different one.
+                <option key={x.name} value={x.name} disabled={!x.guid}>
+                  {x.guid ? x.name : `${x.name} — ${t("meetingProjectMissing")}`}
                 </option>
               ))}
             </select>
@@ -201,7 +244,7 @@ export default function MeetingPage() {
                   aria-label={t("meetingTaskWho")}
                 >
                   <option value="">{t("meetingTaskWho")}</option>
-                  {team?.members.map((m) => (
+                  {project?.members.map((m) => (
                     <option key={m.guid} value={m.guid}>
                       {m.name}
                     </option>

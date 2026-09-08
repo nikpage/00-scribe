@@ -1,12 +1,11 @@
 import { ewayCall } from "./client";
-import { MEETINGS_PROJECT } from "./teams";
 
 // Saving a team meeting into eWay.
 //
 // One meeting produces two kinds of record:
-//   - a Journal holding the full written minutes, filed under the standing
-//     "Zápisy z porad" project (the same SUPERIORITEM relation the visit
-//     journal uses for "Sociální služby <year>");
+//   - a Journal holding the full written minutes, filed under the project the
+//     meeting was held for (the same SUPERIORITEM relation the visit journal
+//     uses for "Sociální služby <year>");
 //   - one Task per assignment, whose Solver is the person it was given to, so
 //     it shows up in that person's own task list in eWay/Outlook.
 //
@@ -32,7 +31,10 @@ export interface MeetingAssignment {
 }
 
 export interface SaveMeetingInput {
-  teamName: string;
+  /** eWay Project ItemGUID the minutes and tasks are filed under. */
+  projectGuid: string;
+  /** That project's name — used in the subject and in error text. */
+  projectName: string;
   topic: string;
   /** ISO date (yyyy-mm-dd) the meeting took place. */
   date: string;
@@ -61,8 +63,10 @@ function findGuid(raw: unknown): string | null {
 
 // "Sedmička – Pravidelná – 2026-08-28". Readable in an eWay list on its own,
 // which is how the minutes get found later.
-export function meetingSubject(input: Pick<SaveMeetingInput, "teamName" | "topic" | "date">): string {
-  return `${input.teamName} – ${input.topic} – ${input.date}`;
+export function meetingSubject(
+  input: Pick<SaveMeetingInput, "projectName" | "topic" | "date">
+): string {
+  return `${input.projectName} – ${input.topic} – ${input.date}`;
 }
 
 // The minutes body: what was typed, then the assignments spelled out, so the
@@ -124,13 +128,13 @@ export async function saveMeeting(
     };
   }
 
-  // File the minutes under the meetings project. Same relation shape as the
+  // File the minutes under the chosen project. Same relation shape as the
   // visit journal's Superior Item.
   const superior = await ewayCall(session, "SaveRelation", {
     transmitObject: {
       ItemGUID1: journalGuid,
       FolderName1: "Journal",
-      ItemGUID2: MEETINGS_PROJECT.guid,
+      ItemGUID2: input.projectGuid,
       FolderName2: "Projects",
       RelationType: "SUPERIORITEM",
       DifferDirection: true,
@@ -153,8 +157,8 @@ export async function saveMeeting(
         IsCompleted: false,
         Users_TaskSolverGuid: a.solverGuid,
         Users_TaskDelegatorGuid: input.delegatorGuid,
-        Projects_TaskParentGuid: MEETINGS_PROJECT.guid,
-        Projects_TopLevelProjectGuid: MEETINGS_PROJECT.guid,
+        Projects_TaskParentGuid: input.projectGuid,
+        Projects_TopLevelProjectGuid: input.projectGuid,
       },
       dieOnItemConflict: false,
     });
@@ -178,6 +182,6 @@ export async function saveMeeting(
       ? `${failed.length} úkolů se neuložilo`
       : superior.ok
         ? null
-        : `Zápis uložen, ale nepodařilo se ho zařadit do projektu ${MEETINGS_PROJECT.name}`,
+        : `Zápis uložen, ale nepodařilo se ho zařadit do projektu ${input.projectName}`,
   };
 }
