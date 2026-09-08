@@ -109,6 +109,49 @@ export async function GET(request: Request) {
     return NextResponse.json({ staff: users.length, alsoContacts: both.length, both });
   }
 
+  // TEMPORARY: ?projects=1 — the real Project list plus each project's raw
+  // relations, so we can see which RelationType eWay uses for the "Tym" tab
+  // (there is no team field on the Project object itself) and read the real
+  // member GUIDs instead of the hardcoded list in lib/eway/teams.ts.
+  if (new URL(request.url).searchParams.get("projects") === "1") {
+    const [projRes, usersRes] = await Promise.all([
+      ewayCall(session, "GetProjects", { includeRelations: true, includeForeignKeys: true }),
+      ewayCall(session, "GetUsers", {}),
+    ]);
+    const users = new Map(
+      (Array.isArray(usersRes.data) ? (usersRes.data as Record<string, unknown>[]) : []).map(
+        (u) => [String(u.ItemGUID ?? "").toLowerCase(), String(u.FileAs ?? u.Username ?? "")] as const
+      )
+    );
+    const projects = (Array.isArray(projRes.data) ? (projRes.data as Record<string, unknown>[]) : []).map(
+      (p) => {
+        const rels = Array.isArray(p.Relations) ? (p.Relations as Record<string, unknown>[]) : [];
+        return {
+          name: p.FileAs ?? p.ProjectName,
+          guid: p.ItemGUID,
+          isCompleted: p.IsCompleted,
+          supervisor: users.get(String(p.Users_SupervisorGuid ?? "").toLowerCase()) ?? null,
+          relations: rels.map((r) => ({
+            type: r.RelationType,
+            folder: r.FolderName1 ?? r.FolderName2 ?? r.ForeignFolderName,
+            guid: r.ItemGUID1 ?? r.ItemGUID2 ?? r.ForeignItemGUID,
+            user:
+              users.get(String(r.ItemGUID2 ?? "").toLowerCase()) ??
+              users.get(String(r.ItemGUID1 ?? "").toLowerCase()) ??
+              users.get(String(r.ForeignItemGUID ?? "").toLowerCase()) ??
+              null,
+          })),
+        };
+      }
+    );
+    return NextResponse.json({
+      returnCode: projRes.returnCode,
+      userCount: users.size,
+      count: projects.length,
+      projects,
+    });
+  }
+
   // If ?defs=journal is given, return the additional-field definitions that
   // belong to the Journal object type (af_NN are numbered per object type), so
   // we can map the journal's Forma / Typ kontaktu / SOR / Oblast dotazu / Cílová
