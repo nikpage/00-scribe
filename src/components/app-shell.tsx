@@ -202,12 +202,12 @@ export function AppShell({ user, children }: { user: AppUser; children: React.Re
                 </button>
               </div>
             </header>
-            <div className="pb-20 md:pb-0">{children}</div>
+            <div className="pb-36 md:pb-0">{children}</div>
           </div>
         </div>
 
         <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-background md:hidden">
-          <div className="flex justify-around py-2">
+          <div className="flex justify-around pt-2 pb-[calc(env(safe-area-inset-bottom)+3.5rem)] md:pb-2">
             {items.map((item) => (
               <a
                 key={item.href}
