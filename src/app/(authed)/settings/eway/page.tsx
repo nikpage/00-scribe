@@ -23,6 +23,9 @@ function EwaySettings() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Lets a connected worker re-enter their password without disconnecting —
+  // the only way back in when the stored one can no longer be used.
+  const [reconnecting, setReconnecting] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
@@ -34,6 +37,8 @@ function EwaySettings() {
     }
     const data = await res.json();
     setConnection(data.credentials ?? null);
+    // Re-entering a failing credential should only require the password.
+    if (data.credentials?.username) setUsername(data.credentials.username);
   }
 
   useEffect(() => {
@@ -166,6 +171,13 @@ function EwaySettings() {
                 {t("ewayTestConnection")}
               </button>
               <button
+                onClick={() => setReconnecting(true)}
+                disabled={busy}
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {t("ewayChangePassword")}
+              </button>
+              <button
                 onClick={handleDisconnect}
                 disabled={busy}
                 className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
@@ -176,7 +188,11 @@ function EwaySettings() {
           </div>
         )}
 
-        {connection === null && (
+        {/* A stored credential that fails to verify leaves the worker stuck:
+            they have a row, so the connect form used to stay hidden and there
+            was no way to type a working password in. Show the form whenever
+            there is no connection OR the stored one is failing. */}
+        {(connection === null || reconnecting || connection?.last_verified_ok === false) && (
           <form onSubmit={handleConnect} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">{t("ewayUsername")}</label>

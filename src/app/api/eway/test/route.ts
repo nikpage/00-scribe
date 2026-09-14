@@ -32,9 +32,14 @@ export async function POST() {
       iv: row.password_iv,
       tag: row.password_tag,
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Decryption failed";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  } catch {
+    // Never surface the raw node:crypto text ("Unsupported state or unable to
+    // authenticate data") — it means the saved password can't be read, and the
+    // only fix a worker has is to disconnect and enter it again.
+    return NextResponse.json(
+      { ok: false, error: "Could not read stored eWay password. Disconnect and enter it again." },
+      { status: 500 }
+    );
   }
 
   let result;
