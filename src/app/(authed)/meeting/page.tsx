@@ -16,7 +16,7 @@ import type { MeetingProject } from "@/lib/eway/projects";
 // Projects and their members come from eWay live (/api/eway/projects): the
 // picker and the save therefore share one source of truth for who exists.
 
-type Row = { key: number; solverGuid: string; text: string; due: string };
+type Row = { key: number; solverGuid: string; text: string; start: string; due: string };
 
 const LAST_PROJECT_KEY = "scribe.meeting.lastProject";
 
@@ -30,7 +30,7 @@ function today(): string {
 
 let nextKey = 1;
 function blankRow(): Row {
-  return { key: nextKey++, solverGuid: "", text: "", due: "" };
+  return { key: nextKey++, solverGuid: "", text: "", start: today(), due: "" };
 }
 
 export default function MeetingPage() {
@@ -125,6 +125,7 @@ export default function MeetingPage() {
           assignments: filled.map((r) => ({
             solverGuid: r.solverGuid,
             text: r.text.trim(),
+            start: r.start || null,
             due: r.due || null,
           })),
         }),
@@ -189,17 +190,6 @@ export default function MeetingPage() {
             </select>
           </div>
           <div>
-            <label className={label} htmlFor="topic">
-              {t("meetingTopic")}
-            </label>
-            <input
-              id="topic"
-              className={field}
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-            />
-          </div>
-          <div>
             <label className={label} htmlFor="date">
               {t("meetingDate")}
             </label>
@@ -209,6 +199,17 @@ export default function MeetingPage() {
               className={field}
               value={date}
               onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={label} htmlFor="topic">
+              {t("meetingTopic")}
+            </label>
+            <input
+              id="topic"
+              className={field}
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
             />
           </div>
         </div>
@@ -250,13 +251,6 @@ export default function MeetingPage() {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="date"
-                  className={field}
-                  value={row.due}
-                  onChange={(e) => updateRow(row.key, { due: e.target.value })}
-                  aria-label={t("meetingTaskDue")}
-                />
                 <button
                   type="button"
                   onClick={() => removeRow(row.key)}
@@ -264,6 +258,32 @@ export default function MeetingPage() {
                 >
                   {t("meetingRemoveTask")}
                 </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={label} htmlFor={`start-${row.key}`}>
+                    {t("meetingTaskStart")}
+                  </label>
+                  <input
+                    id={`start-${row.key}`}
+                    type="date"
+                    className={field}
+                    value={row.start}
+                    onChange={(e) => updateRow(row.key, { start: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={label} htmlFor={`due-${row.key}`}>
+                    {t("meetingTaskDue")}
+                  </label>
+                  <input
+                    id={`due-${row.key}`}
+                    type="date"
+                    className={field}
+                    value={row.due}
+                    onChange={(e) => updateRow(row.key, { due: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
           ))}

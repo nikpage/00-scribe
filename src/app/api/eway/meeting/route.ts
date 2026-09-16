@@ -6,7 +6,7 @@ import { logAudit } from "@/lib/audit";
 
 // POST /api/eway/meeting — save typed meeting minutes into eWay.
 //
-// Body: { teamId, topic, date, notes, assignments: [{ solverGuid, text, due }] }
+// Body: { teamId, topic, date, notes, assignments: [{ solverGuid, text, start, due }] }
 // teamId is the project name shown in the picker. The project (and therefore
 // who may be assigned) is re-read from eWay here, so an unknown project or a
 // solver who isn't on its Tym is rejected rather than quietly filed against
@@ -47,7 +47,9 @@ export async function POST(request: Request) {
       );
     }
     const due = typeof raw?.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.due) ? raw.due : null;
-    assignments.push({ solverGuid, solverName: member.name, text, due });
+    const start =
+      typeof raw?.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.start) ? raw.start : null;
+    assignments.push({ solverGuid, solverName: member.name, text, start, due });
   }
 
   if (!notes.trim() && assignments.length === 0) {

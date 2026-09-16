@@ -26,6 +26,8 @@ export interface MeetingAssignment {
   solverName: string;
   /** What they agreed to do; becomes the task's subject. */
   text: string;
+  /** ISO date (yyyy-mm-dd) the task starts; null falls back to the meeting date. */
+  start: string | null;
   /** ISO date (yyyy-mm-dd) or null when the meeting set no deadline. */
   due: string | null;
 }
@@ -149,7 +151,7 @@ export async function saveMeeting(
         Subject: a.text,
         // Point back at the meeting the task came out of.
         Body: `${subject}\n\n${a.text}`,
-        StartDate: `${input.date}T00:00:00`,
+        StartDate: `${a.start ?? input.date}T00:00:00`,
         ...(a.due ? { DueDate: `${a.due}T00:00:00` } : {}),
         TypeEn: TASK_TYPE_UKOL,
         StateEn: TASK_STATE_NEZAHAJENO,
