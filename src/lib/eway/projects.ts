@@ -1,34 +1,22 @@
 import { ewayCall } from "./client";
 import { getUsers } from "./journal";
 
-// The projects a meeting can be filed against, and who may be assigned in one.
+// Every project a meeting can be filed against, and who may be assigned in one.
 //
-// The list of names is fixed — these are the standing meetings, not every
-// project in eWay (there are ~390, and IsCompleted is not maintained, so it
-// can't filter them). Each name is resolved to a real eWay Project by name at
-// request time, the same way journal.ts resolves "Sociální služby <year>", so
-// no GUID is hardcoded here.
+// All projects are returned (~390): a meeting's parent project is one of the
+// standing meetings, but a tab inside it can be any project at all, so the
+// picker cannot be a shortlist. Duplicate names keep their first match — the
+// later ones are older copies. No GUID is hardcoded.
 //
 // A project's "Tým" tab is not a field on the Project object: it is a relation
 // of type TEAM pointing at Users (confirmed live — 1313 of them across the
 // instance). Members are intersected with getUsers(), which already drops
 // inactive/system/API accounts, so people who have left don't appear.
 
-export const MEETING_PROJECT_NAMES = [
-  "Porada SEDMIČKA",
-  "Porada TROJKA",
-  "OSA",
-  "SOR",
-  "Rehabilitace",
-  "CDS",
-  "PR / MARKETING",
-  "PŮJČOVNA",
-] as const;
-
 export type MeetingProject = {
-  /** The configured name, shown in the picker; also the id used in the form. */
+  /** The eWay project name, shown in the picker; also the id used in the form. */
   name: string;
-  /** eWay Project ItemGUID, or null when no project of that name exists. */
+  /** eWay Project ItemGUID. */
   guid: string | null;
   /** Active eWay users on that project's Tým, "Surname, First". */
   members: { guid: string; name: string }[];
@@ -66,9 +54,11 @@ export async function getMeetingProjects(session: string): Promise<MeetingProjec
     if (!byName.has(fold(name))) byName.set(fold(name), p);
   }
 
-  return MEETING_PROJECT_NAMES.map((name) => {
-    const project = byName.get(fold(name));
-    if (!project) return { name, guid: null, members: [] };
+  const projects: MeetingProject[] = [];
+  for (const project of byName.values()) {
+    const name = str(project, "FileAs") ?? str(project, "ProjectName");
+    const guid = str(project, "ItemGUID");
+    if (!name || !guid) continue;
 
     const members: MeetingProject["members"] = [];
     const seen = new Set<string>();
@@ -76,16 +66,19 @@ export async function getMeetingProjects(session: string): Promise<MeetingProjec
       if (str(rel, "RelationType") !== "TEAM") continue;
       // The user is whichever side of the relation isn't the project itself.
       for (const key of ["ItemGUID1", "ItemGUID2", "ForeignItemGUID"]) {
-        const guid = (str(rel, key) ?? "").toLowerCase();
-        const memberName = activeUsers.get(guid);
-        if (memberName && !seen.has(guid)) {
-          seen.add(guid);
-          members.push({ guid, name: memberName });
+        const memberGuid = (str(rel, key) ?? "").toLowerCase();
+        const memberName = activeUsers.get(memberGuid);
+        if (memberName && !seen.has(memberGuid)) {
+          seen.add(memberGuid);
+          members.push({ guid: memberGuid, name: memberName });
         }
       }
     }
     members.sort((a, b) => a.name.localeCompare(b.name, "cs"));
 
-    return { name, guid: str(project, "ItemGUID"), members };
-  });
+    projects.push({ name, guid, members });
+  }
+
+  projects.sort((a, b) => a.name.localeCompare(b.name, "cs"));
+  return projects;
 }

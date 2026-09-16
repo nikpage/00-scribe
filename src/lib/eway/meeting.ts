@@ -32,6 +32,15 @@ export interface MeetingAssignment {
   due: string | null;
 }
 
+/** One tab of a meeting: a project that was discussed, its minutes, its tasks. */
+export interface MeetingTab {
+  /** The discussed project's name. A label only — tasks file under the parent. */
+  projectName: string;
+  /** Free-text minutes for this project as typed by the note-taker. */
+  notes: string;
+  assignments: MeetingAssignment[];
+}
+
 export interface SaveMeetingInput {
   /** eWay Project ItemGUID the minutes and tasks are filed under. */
   projectGuid: string;
@@ -40,9 +49,8 @@ export interface SaveMeetingInput {
   topic: string;
   /** ISO date (yyyy-mm-dd) the meeting took place. */
   date: string;
-  /** Free-text minutes as typed by the note-taker. */
-  notes: string;
-  assignments: MeetingAssignment[];
+  /** One per project discussed; the whole meeting's content lives here. */
+  tabs: MeetingTab[];
   /** eWay user GUID of the note-taker; becomes each task's delegator. */
   delegatorGuid: string;
 }
@@ -71,18 +79,22 @@ export function meetingSubject(
   return `${input.projectName} – ${input.topic} – ${input.date}`;
 }
 
-// The minutes body: what was typed, then the assignments spelled out, so the
-// journal alone is a complete record even though the tasks live separately.
+// The minutes body: a section per project discussed — its name, what was typed
+// about it, then its assignments spelled out. The journal alone is therefore a
+// complete record of the whole meeting even though the tasks live separately.
 export function meetingBody(input: SaveMeetingInput): string {
-  const parts = [input.notes.trim()];
-  if (input.assignments.length) {
-    const lines = input.assignments.map((a) => {
-      const due = a.due ? ` (do ${a.due})` : "";
-      return `- ${a.solverName}: ${a.text}${due}`;
-    });
-    parts.push(`Úkoly:\n${lines.join("\n")}`);
-  }
-  return parts.filter(Boolean).join("\n\n");
+  const sections = input.tabs.map((tab) => {
+    const parts = [tab.projectName, tab.notes.trim()];
+    if (tab.assignments.length) {
+      const lines = tab.assignments.map((a) => {
+        const due = a.due ? ` (do ${a.due})` : "";
+        return `- ${a.solverName}: ${a.text}${due}`;
+      });
+      parts.push(`Úkoly:\n${lines.join("\n")}`);
+    }
+    return parts.filter(Boolean).join("\n\n");
+  });
+  return sections.filter(Boolean).join("\n\n———\n\n");
 }
 
 
@@ -144,35 +156,39 @@ export async function saveMeeting(
   });
 
   const tasks: SaveMeetingResult["tasks"] = [];
-  for (const a of input.assignments) {
-    const res = await ewayCall(session, "SaveTask", {
-      transmitObject: {
-        FileAs: a.text,
-        Subject: a.text,
-        // Point back at the meeting the task came out of.
-        Body: `${subject}\n\n${a.text}`,
-        StartDate: `${a.start ?? input.date}T00:00:00`,
-        ...(a.due ? { DueDate: `${a.due}T00:00:00` } : {}),
-        TypeEn: TASK_TYPE_UKOL,
-        StateEn: TASK_STATE_NEZAHAJENO,
-        ImportanceEn: TASK_IMPORTANCE_NORMAL,
-        IsCompleted: false,
-        Users_TaskSolverGuid: a.solverGuid,
-        Users_TaskDelegatorGuid: input.delegatorGuid,
-        Projects_TaskParentGuid: input.projectGuid,
-        Projects_TopLevelProjectGuid: input.projectGuid,
-      },
-      dieOnItemConflict: false,
-    });
-    tasks.push({
-      solverName: a.solverName,
-      text: a.text,
-      guid: findGuid(res.raw),
-      ok: res.ok,
-      // eWay puts field-level complaints in UserErrorMessages / Description;
-      // keep whichever it actually filled so the cause isn't swallowed.
-      error: res.ok ? null : describeFailure(res),
-    });
+  for (const tab of input.tabs) {
+    for (const a of tab.assignments) {
+      const res = await ewayCall(session, "SaveTask", {
+        transmitObject: {
+          FileAs: a.text,
+          Subject: a.text,
+          // Point back at the meeting and the project it was discussed under —
+          // the task itself files against the parent project, so the tab name
+          // is the only trace of which discussion produced it.
+          Body: `${subject}\n\n${tab.projectName}\n\n${a.text}`,
+          StartDate: `${a.start ?? input.date}T00:00:00`,
+          ...(a.due ? { DueDate: `${a.due}T00:00:00` } : {}),
+          TypeEn: TASK_TYPE_UKOL,
+          StateEn: TASK_STATE_NEZAHAJENO,
+          ImportanceEn: TASK_IMPORTANCE_NORMAL,
+          IsCompleted: false,
+          Users_TaskSolverGuid: a.solverGuid,
+          Users_TaskDelegatorGuid: input.delegatorGuid,
+          Projects_TaskParentGuid: input.projectGuid,
+          Projects_TopLevelProjectGuid: input.projectGuid,
+        },
+        dieOnItemConflict: false,
+      });
+      tasks.push({
+        solverName: a.solverName,
+        text: a.text,
+        guid: findGuid(res.raw),
+        ok: res.ok,
+        // eWay puts field-level complaints in UserErrorMessages / Description;
+        // keep whichever it actually filled so the cause isn't swallowed.
+        error: res.ok ? null : describeFailure(res),
+      });
+    }
   }
 
   const failed = tasks.filter((t) => !t.ok);
