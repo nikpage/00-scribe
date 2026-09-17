@@ -36,15 +36,18 @@ export interface MeetingAssignment {
 
 /** One tab of a meeting: a project that was discussed, its minutes, its tasks. */
 export interface MeetingTab {
-  /** The discussed project's name. A label only — tasks file under the parent. */
+  /** The discussed project's name, used as the section heading in the minutes. */
   projectName: string;
+  /** That project's eWay ItemGUID — this tab's tasks file under it. */
+  projectGuid: string;
   /** Free-text minutes for this project as typed by the note-taker. */
   notes: string;
   assignments: MeetingAssignment[];
 }
 
 export interface SaveMeetingInput {
-  /** eWay Project ItemGUID the minutes and tasks are filed under. */
+  /** eWay Project ItemGUID the minutes are filed under, and every task's
+   * top-level project, so the whole meeting's tasks stay visible on it. */
   projectGuid: string;
   /** That project's name — used in the subject and in error text. */
   projectName: string;
@@ -163,10 +166,9 @@ export async function saveMeeting(
         transmitObject: {
           FileAs: a.text,
           Subject: a.text,
-          // Point back at the meeting and the project it was discussed under —
-          // the task itself files against the parent project, so the tab name
-          // is the only trace of which discussion produced it.
-          Body: `${subject}\n\n${tab.projectName}\n\n${a.text}`,
+          // Point back at the meeting the task came out of; the project it
+          // was discussed under is the task's own parent project below.
+          Body: `${subject}\n\n${a.text}`,
           StartDate: `${a.start ?? input.date}T00:00:00`,
           ...(a.due ? { DueDate: `${a.due}T00:00:00` } : {}),
           ...(a.reminder
@@ -178,7 +180,9 @@ export async function saveMeeting(
           IsCompleted: false,
           Users_TaskSolverGuid: a.solverGuid,
           Users_TaskDelegatorGuid: input.delegatorGuid,
-          Projects_TaskParentGuid: input.projectGuid,
+          // The task belongs to the project it was discussed under, and rolls
+          // up to the meeting's project — one record listed on both.
+          Projects_TaskParentGuid: tab.projectGuid,
           Projects_TopLevelProjectGuid: input.projectGuid,
         },
         dieOnItemConflict: false,

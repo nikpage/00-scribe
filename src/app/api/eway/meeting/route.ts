@@ -9,11 +9,12 @@ import { logAudit } from "@/lib/audit";
 // Body: { teamId, date, tabs: [{ projectName, notes,
 //          assignments: [{ solverGuid, text, start, due, reminder }] }] }
 //
-// teamId is the parent project everything files under. Each tab names another
-// project that was discussed; that name is a label on the minutes and on each
-// task, never where the task is filed. Projects and the parent's Tym are
-// re-read from eWay here, so an unknown project or a solver who isn't on the
-// parent's Tym is rejected rather than quietly filed against the wrong person.
+// teamId is the meeting's project: the minutes file under it, and every task
+// rolls up to it. Each tab names another project that was discussed, and that
+// tab's tasks file under *that* project — one task record, listed on both.
+// Projects and the meeting project's Tym are re-read from eWay here, so an
+// unknown project or a solver who isn't on the Tym is rejected rather than
+// quietly filed against the wrong person.
 export async function POST(request: Request) {
   const sess = await getEwaySessionForCurrentUser();
   if (!sess.ok) return NextResponse.json({ error: sess.error }, { status: sess.status });
@@ -47,8 +48,8 @@ export async function POST(request: Request) {
       const text = typeof raw?.text === "string" ? raw.text.trim() : "";
       const solverGuid = typeof raw?.solverGuid === "string" ? raw.solverGuid : "";
       if (!text) continue; // an empty row the note-taker left behind
-      // Solvers come from the parent project's Tym, because that is where the
-      // task is filed — not from the discussed project's.
+      // Solvers come from the meeting project's Tym — the people in the room —
+      // not from the discussed project's.
       const member = project.members.find((m) => m.guid === solverGuid.toLowerCase());
       if (!member) {
         return NextResponse.json(
@@ -68,12 +69,14 @@ export async function POST(request: Request) {
     }
 
     if (!notes.trim() && assignments.length === 0) continue; // an untouched tab
-    if (!projectName || !projects.some((p) => p.name === projectName)) {
+    // The tab's project is a filing target now, so it must resolve to a GUID.
+    const tabProject = projects.find((p) => p.name === projectName);
+    if (!projectName || !tabProject?.guid) {
       return NextResponse.json({ error: "Unknown project in a tab" }, { status: 400 });
     }
     noteCount += notes.trim() ? 1 : 0;
     assignmentCount += assignments.length;
-    tabs.push({ projectName, notes, assignments });
+    tabs.push({ projectName, projectGuid: tabProject.guid, notes, assignments });
   }
 
   if (noteCount === 0 && assignmentCount === 0) {
