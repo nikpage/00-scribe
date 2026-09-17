@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useEwayAttention } from "@/components/app-shell";
-import { DEFAULT_TOPIC } from "@/lib/eway/teams";
 import type { MeetingProject } from "@/lib/eway/projects";
 
 // Meeting minutes. Deliberately off the main nav: most workers only ever
@@ -20,7 +19,14 @@ import type { MeetingProject } from "@/lib/eway/projects";
 // Projects and their members come from eWay live (/api/eway/projects): the
 // picker and the save therefore share one source of truth for who exists.
 
-type Row = { key: number; solverGuid: string; text: string; start: string; due: string };
+type Row = {
+  key: number;
+  solverGuid: string;
+  text: string;
+  start: string;
+  due: string;
+  reminder: string;
+};
 type Tab = { key: number; projectName: string; notes: string; rows: Row[] };
 
 const LAST_PROJECT_KEY = "scribe.meeting.lastProject";
@@ -35,7 +41,7 @@ function today(): string {
 
 let nextKey = 1;
 function blankRow(): Row {
-  return { key: nextKey++, solverGuid: "", text: "", start: today(), due: "" };
+  return { key: nextKey++, solverGuid: "", text: "", start: today(), due: "", reminder: "" };
 }
 function blankTab(): Tab {
   return { key: nextKey++, projectName: "", notes: "", rows: [blankRow()] };
@@ -48,7 +54,6 @@ export default function MeetingPage() {
   const [projects, setProjects] = useState<MeetingProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectName, setProjectName] = useState("");
-  const [topic, setTopic] = useState(DEFAULT_TOPIC);
   const [date, setDate] = useState(today);
   const [tabs, setTabs] = useState<Tab[]>([blankTab()]);
   const [activeTab, setActiveTab] = useState(0);
@@ -165,7 +170,6 @@ export default function MeetingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           teamId: projectName,
-          topic: topic.trim(),
           date,
           tabs: filledTabs.map((x) => ({
             projectName: x.projectName,
@@ -175,6 +179,7 @@ export default function MeetingPage() {
               text: r.text.trim(),
               start: r.start || null,
               due: r.due || null,
+              reminder: r.reminder || null,
             })),
           })),
         }),
@@ -239,30 +244,17 @@ export default function MeetingPage() {
               onChange={(e) => setProjectName(e.target.value)}
             />
           </div>
-          <div className="space-y-3">
-            <div>
-              <label className={label} htmlFor="date">
-                {t("meetingDate")}
-              </label>
-              <input
-                id="date"
-                type="date"
-                className={field}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={label} htmlFor="topic">
-                {t("meetingTopic")}
-              </label>
-              <input
-                id="topic"
-                className={field}
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className={label} htmlFor="date">
+              {t("meetingDate")}
+            </label>
+            <input
+              id="date"
+              type="date"
+              className={field}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
         </div>
 
@@ -365,7 +357,7 @@ export default function MeetingPage() {
                         {t("meetingRemoveTask")}
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className={label} htmlFor={`start-${row.key}`}>
                           {t("meetingTaskStart")}
@@ -388,6 +380,20 @@ export default function MeetingPage() {
                           className={field}
                           value={row.due}
                           onChange={(e) => updateRow(tab.key, row.key, { due: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={label} htmlFor={`reminder-${row.key}`}>
+                          {t("meetingTaskReminder")}
+                        </label>
+                        <input
+                          id={`reminder-${row.key}`}
+                          type="date"
+                          className={field}
+                          value={row.reminder}
+                          onChange={(e) =>
+                            updateRow(tab.key, row.key, { reminder: e.target.value })
+                          }
                         />
                       </div>
                     </div>

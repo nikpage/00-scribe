@@ -6,8 +6,8 @@ import { logAudit } from "@/lib/audit";
 
 // POST /api/eway/meeting — save typed meeting minutes into eWay.
 //
-// Body: { teamId, topic, date, tabs: [{ projectName, notes,
-//          assignments: [{ solverGuid, text, start, due }] }] }
+// Body: { teamId, date, tabs: [{ projectName, notes,
+//          assignments: [{ solverGuid, text, start, due, reminder }] }] }
 //
 // teamId is the parent project everything files under. Each tab names another
 // project that was discussed; that name is a label on the minutes and on each
@@ -20,11 +20,9 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const wantedProject = typeof body?.teamId === "string" ? body.teamId : "";
-  const topic = typeof body?.topic === "string" ? body.topic.trim() : "";
   const date = typeof body?.date === "string" ? body.date : "";
   const rawTabs = Array.isArray(body?.tabs) ? body.tabs : [];
 
-  if (!topic) return NextResponse.json({ error: "Missing topic" }, { status: 400 });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Missing or malformed date" }, { status: 400 });
   }
@@ -62,7 +60,11 @@ export async function POST(request: Request) {
         typeof raw?.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.due) ? raw.due : null;
       const start =
         typeof raw?.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.start) ? raw.start : null;
-      assignments.push({ solverGuid, solverName: member.name, text, start, due });
+      const reminder =
+        typeof raw?.reminder === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.reminder)
+          ? raw.reminder
+          : null;
+      assignments.push({ solverGuid, solverName: member.name, text, start, due, reminder });
     }
 
     if (!notes.trim() && assignments.length === 0) continue; // an untouched tab
@@ -93,7 +95,6 @@ export async function POST(request: Request) {
       saveMeeting(session, {
         projectGuid,
         projectName: project.name,
-        topic,
         date,
         tabs,
         delegatorGuid: sess.ewayUserGuid ?? "",

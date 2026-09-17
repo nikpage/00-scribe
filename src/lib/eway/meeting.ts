@@ -30,6 +30,8 @@ export interface MeetingAssignment {
   start: string | null;
   /** ISO date (yyyy-mm-dd) or null when the meeting set no deadline. */
   due: string | null;
+  /** ISO date (yyyy-mm-dd) to remind the solver on, or null for no reminder. */
+  reminder: string | null;
 }
 
 /** One tab of a meeting: a project that was discussed, its minutes, its tasks. */
@@ -46,7 +48,6 @@ export interface SaveMeetingInput {
   projectGuid: string;
   /** That project's name — used in the subject and in error text. */
   projectName: string;
-  topic: string;
   /** ISO date (yyyy-mm-dd) the meeting took place. */
   date: string;
   /** One per project discussed; the whole meeting's content lives here. */
@@ -71,12 +72,12 @@ function findGuid(raw: unknown): string | null {
   return entry ? (entry[1] as string) : null;
 }
 
-// "Sedmička – Pravidelná – 2026-08-28". Readable in an eWay list on its own,
-// which is how the minutes get found later.
+// "Sedmička – 2026-08-28". Readable in an eWay list on its own, which is how
+// the minutes get found later.
 export function meetingSubject(
-  input: Pick<SaveMeetingInput, "projectName" | "topic" | "date">
+  input: Pick<SaveMeetingInput, "projectName" | "date">
 ): string {
-  return `${input.projectName} – ${input.topic} – ${input.date}`;
+  return `${input.projectName} – ${input.date}`;
 }
 
 // The minutes body: a section per project discussed — its name, what was typed
@@ -168,6 +169,9 @@ export async function saveMeeting(
           Body: `${subject}\n\n${tab.projectName}\n\n${a.text}`,
           StartDate: `${a.start ?? input.date}T00:00:00`,
           ...(a.due ? { DueDate: `${a.due}T00:00:00` } : {}),
+          ...(a.reminder
+            ? { ReminderDate: `${a.reminder}T00:00:00`, IsReminderSet: true }
+            : {}),
           TypeEn: TASK_TYPE_UKOL,
           StateEn: TASK_STATE_NEZAHAJENO,
           ImportanceEn: TASK_IMPORTANCE_NORMAL,
